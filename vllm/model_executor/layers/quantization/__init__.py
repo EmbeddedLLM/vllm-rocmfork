@@ -10,6 +10,7 @@ QUANTIZATION_METHODS: List[str] = [
     "tpu_int8",
     "fp8",
     "fbgemm_fp8",
+    "ptpc_fp8",
     "modelopt",
     # The order of gptq methods is important for config.py iteration over
     # override_quantization_method(..)
@@ -43,6 +44,7 @@ def get_quantization_config(quantization: str) -> Type[QuantizationConfig]:
     from .deepspeedfp import DeepSpeedFPConfig
     from .experts_int8 import ExpertsInt8Config
     from .fbgemm_fp8 import FBGEMMFp8Config
+    from .ptpc_fp8 import PTPCFp8Config
     from .fp8 import Fp8Config
     from .gguf import GGUFConfig
     from .gptq import GPTQConfig
@@ -63,6 +65,7 @@ def get_quantization_config(quantization: str) -> Type[QuantizationConfig]:
         "tpu_int8": Int8TpuConfig,
         "fp8": Fp8Config,
         "fbgemm_fp8": FBGEMMFp8Config,
+        "ptpc_fp8": PTPCFp8Config,
         "modelopt": ModelOptFp8Config,
         # The order of gptq methods is important for config.py iteration over
         # override_quantization_method(..)
