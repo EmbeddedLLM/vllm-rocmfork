@@ -539,6 +539,64 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
     ARCHITECTURES ${VLLM_GPU_ARCHES}
     USE_SABI 3
     WITH_SOABI)
+
+  #
+  # _fp8gemm_C extension
+  #
+  set(VLLM_FP8GEMM_EXT_SRC
+    "csrc/fbgemm_fp8_rowwise/torch_bindings.cpp"
+    "csrc/fbgemm_fp8_rowwise/fp8_rowwise_gemm.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x128x16x128_16x16_4x1_8x16x1_8x16x1_1x16x1x8_8x8x1_1x1_interwave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x128x32x128_32x32_2x1_8x16x1_8x16x1_1x16x1x8_4x4x1_1x1_intrawave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x16x32x128_16x16_1x1_8x16x1_8x16x1_1x16x1x8_4x4x1_1x1_interwave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x16x32x128_16x16_1x1_8x16x1_8x16x1_1x16x1x8_4x4x1_1x1_intrawave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x16x32x512_16x16_1x1_8x16x1_8x16x1_1x16x1x8_4x4x1_1x1_interwave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x32x128x128_32x32_1x2_8x16x1_8x16x1_1x16x1x8_8x8x1_1x1_interwave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x32x16x128_16x16_1x1_8x16x1_8x16x1_1x16x1x8_2x2x1_1x1_interwave_v2.cu"
+    # "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x32x16x128_16x16_1x1_8x16x1_8x16x1_1x16x1x8_2x2x1_1x1_interwave_v2_16.split_k.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x32x64x128_32x32_1x1_8x16x1_8x16x1_1x16x1x8_8x8x1_1x1_interwave_v2.cu"
+    # "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x32x64x128_32x32_1x1_8x16x1_8x16x1_1x16x1x8_8x8x1_1x1_interwave_v2_16.split_k.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x32x64x128_32x32_1x1_8x16x1_8x16x1_1x16x1x8_8x8x1_1x1_intrawave_v2.cu"
+    # "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x64x32x128_32x32_1x1_8x16x1_8x16x1_1x16x1x8_4x4x1_1x1_interwave_v2_16.split_k.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_128x64x32x128_32x32_1x1_8x16x1_8x16x1_1x16x1x8_4x4x1_1x1_intrawave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x128x128x128_32x32_2x2_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_interwave_v1.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x128x128x128_32x32_2x2_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x128x128x128_32x32_2x2_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v5.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x128x128x64_32x32_2x2_4x64x1_4x64x1_1x32x1x8_8x8x1_1x1_intrawave_v4.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x128x160x128_32x32_1x5_8x32x1_8x32x1_1x64x1x4_8x8x1_1x1_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x128x192x128_32x32_2x3_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x128x64x128_32x32_2x1_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x192x128x128_16x16_6x4_8x32x1_8x32x1_1x32x1x8_8x8x1_2x2_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x192x256x128_16x16_6x8_8x32x1_8x32x1_1x32x1x8_8x8x1_2x2_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x224x256x128_16x16_7x8_8x32x1_8x32x1_1x32x1x8_8x8x1_1x2_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x256x192x128_32x32_4x3_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x256x224x128_16x16_8x7_8x32x1_8x32x1_1x64x1x4_8x8x1_2x1_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x256x256x128_16x16_8x8_8x32x1_8x32x1_1x32x1x8_8x8x1_1x2_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x256x256x64_16x16_8x8_4x64x1_4x64x1_1x32x1x8_8x8x1_1x2_intrawave_v3.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x256x256x64_32x32_4x4_4x64x1_4x64x1_1x32x1x8_8x8x1_1x1_intrawave_v4.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_256x64x64x128_32x32_1x1_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v3.cu"
+    # "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_64x16x16x128_16x16_1x1_8x8x1_8x8x1_1x16x1x4_4x4x1_1x1_interwave_v1_16.split_k.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_64x16x16x128_16x16_1x1_8x8x1_8x8x1_1x16x1x4_4x4x1_1x1_interwave_v2.cu"
+    # "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_64x16x16x256_16x16_1x1_16x4x1_16x4x1_1x4x1x16_4x4x1_1x1_intrawave_v1.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_64x16x16x512_16x16_1x1_32x2x1_32x2x1_1x16x1x4_4x4x1_1x1_interwave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_64x16x16x512_16x16_1x1_8x8x1_8x8x1_1x16x1x4_4x4x1_1x1_interwave_v2.cu"
+    "csrc/fbgemm_fp8_rowwise/kernels/fp8_rowwise_64x16x16x64_16x16_1x1_4x16x1_4x16x1_1x16x1x4_4x4x1_1x1_interwave_v2.cu"
+  )
+
+  find_package(composable_kernel REQUIRED)
+
+  set(fp8_supported_archs "gfx940" "gfx941" "gfx942")
+  define_gpu_extension_target(
+    _fp8gemm_C
+    DESTINATION vllm
+    LANGUAGE ${VLLM_GPU_LANG}
+    SOURCES ${VLLM_FP8GEMM_EXT_SRC}
+    COMPILE_FLAGS ${VLLM_GPU_FLAGS}
+    ARCHITECTURES ${fp8_supported_archs}
+    USE_SABI 3
+    WITH_SOABI
+    # LIBRARIES "composable_kernel"
+    )
 endif()
 
 # vllm-flash-attn currently only supported on CUDA
