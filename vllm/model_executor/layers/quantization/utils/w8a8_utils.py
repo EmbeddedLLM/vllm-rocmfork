@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple, Union
 import torch
 
 from vllm import _custom_ops as ops
+from vllm.model_executor.layers.quantization.kernels.fp8_gemm import matmul_fp8_row
 from vllm.platforms import current_platform
 
 # Input scaling factors are no longer optional in _scaled_mm starting
@@ -127,12 +128,20 @@ def apply_fp8_linear(
         # for matrices with batch dimension > 16.
         # This could change in the future.
         if input.dtype != torch.float8_e4m3fnuz:
+            # print("if input.dtype != torch.float8_e4m3fnuz:")
+            # qinput, x_scale = ops.scaled_fp8_quant(
+            #     input_2d,
+            #     input_scale,
+            #     num_token_padding=17,
+            #     use_per_token_if_dynamic=use_per_token_if_dynamic)
+            
             qinput, x_scale = ops.scaled_fp8_quant(
                 input_2d,
                 input_scale,
-                num_token_padding=17,
+                scale_ub=input_scale_ub,
                 use_per_token_if_dynamic=use_per_token_if_dynamic)
         else:
+            # print("qinput, x_scale = input_2d, input_scale")
             qinput, x_scale = input_2d, input_scale
 
         per_tensor_weights = (weight_scale.numel() == 1)
@@ -154,6 +163,34 @@ def apply_fp8_linear(
             return torch.narrow(output, 0, 0,
                                 input_2d.shape[0]).view(*output_shape)
 
+        elif ((not per_tensor_weights) and (not per_tensor_activations)):
+            # print("""
+            # assume is per-token-activation and per-channel-weight (outer channel)
+            # """)
+            # assume is per-token-activation and per-channel-weight (outer channel)
+            # Fused GEMM_DQ
+
+            # print("input_scale_ub: ", input_scale_ub)
+            # qinput, x_scale = ops.scaled_fp8_quant(
+            #     input_2d,
+            #     input_scale,
+            #     scale_ub=input_scale_ub,
+            #     use_per_token_if_dynamic=use_per_token_if_dynamic)
+
+            # print("qinput: ", qinput.shape)
+            # print("x_scale: ", x_scale.shape)
+
+            output = matmul_fp8_row(qinput,
+                                    weight.transpose(1,0),
+                                    dot_out_dtype=torch.float32,
+                                    a_scale=x_scale.squeeze(dim=1),
+                                    b_scale=weight_scale.squeeze(dim=1),
+                                    bias=bias, 
+                                    allow_tf32=True,
+                                    # fp8_fast_accum=True,
+                                    imprecise_acc=True,
+                                    ).to(out_dtype)
+            return output.view(*output_shape)
         else:
             # Fallback for channelwise case, where we use unfused DQ
             # due to limitations with scaled_mm
