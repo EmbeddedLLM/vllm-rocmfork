@@ -213,38 +213,38 @@ RowwiseKernel rowwise_heuristic_dispatch(int M, int N, int K) {
   // if(!((N % 8 == 0) && (K % 16 == 0)))
   //     return fp8_rowwise_64x16x16x256_16x16_1x1_16x4x1_16x4x1_1x4x1x16_4x4x1_1x1_intrawave_v1;
 
-  if (M < 64 && N < 2048 && K < 2048) {
+  if (M < 64 && N < 2048 && K < 2048) { // COND_1
     // Kernel that generally works well on small shapes.
     return fp8_rowwise_64x16x16x128_16x16_1x1_8x8x1_8x8x1_1x16x1x4_4x4x1_1x1_interwave_v2;
-  } else if (M < 64 && K < 2048) {
+  } else if (M < 64 && K < 2048) { // COND_2
     // Kernel that works well for small batch size and small K.
     return fp8_rowwise_128x16x32x128_16x16_1x1_8x16x1_8x16x1_1x16x1x8_4x4x1_1x1_intrawave_v2;
-  } else if (M < 64 && N < 2048) {
+  } else if (M < 64 && N < 2048) { // COND_3
     // Kernel that works well for small batch size and small N.
     return fp8_rowwise_128x32x16x128_16x16_1x1_8x16x1_8x16x1_1x16x1x8_2x2x1_1x1_interwave_v2;
-  // } else if (M < 64 && N > 2048 && K > 2048) {
+  // } else if (M < 64 && N > 2048 && K > 2048) { // COND_4
   //   // Kernel that works well for small M but larger N and K.
   //   return fp8_rowwise_64x16x16x256_16x16_1x1_16x4x1_16x4x1_1x4x1x16_4x4x1_1x1_intrawave_v1;
-  } else if (M < 64) {
+  } else if (M < 64) { // COND_5
     // Fallback to generic small batch kernel if we cant find a good match.
     return fp8_rowwise_64x16x16x128_16x16_1x1_8x8x1_8x8x1_1x16x1x4_4x4x1_1x1_interwave_v2;
   } else if (
       ((M < 512 && K < 8192) || (N <= 2048 && K <= 8192) ||
        (K <= 2048 && N <= 8192)) &&
-      K >= 1024) {
+      K >= 1024) { // COND_6
     // Kernel that is optimized for larger batch sizes but otherwise small
     // tensors.
     return fp8_rowwise_256x128x128x128_32x32_2x2_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v5;
-  } else if (K < 1024) {
+  } else if (K < 1024) { // COND_7
     // Special case for small K.
     return fp8_rowwise_256x128x128x128_32x32_2x2_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_interwave_v1;
-  } else if (M < 1024) {
+  } else if (M < 1024) { // COND_8
     // Kernel for generic medium batch sizes.
     return fp8_rowwise_256x128x128x128_32x32_2x2_8x32x1_8x32x1_1x32x1x8_8x8x1_1x1_intrawave_v3;
-  } else if (M >= 1024 && N >= 1024 && K >= 1024) {
+  } else if (M >= 1024 && N >= 1024 && K >= 1024) { // COND_9
     // Kernel for very large gemm
     return fp8_rowwise_256x256x256x128_16x16_8x8_8x32x1_8x32x1_1x32x1x8_8x8x1_1x2_intrawave_v3;
-  } else {
+  } else { // COND_10
     // Fallback large kernel.
     return fp8_rowwise_256x224x256x128_16x16_7x8_8x32x1_8x32x1_1x32x1x8_8x8x1_1x2_intrawave_v3;
   }
