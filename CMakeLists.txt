@@ -539,6 +539,30 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
     ARCHITECTURES ${VLLM_GPU_ARCHES}
     USE_SABI 3
     WITH_SOABI)
+
+  #
+  # _fp8gemm_C extension
+  #
+  set(VLLM_FP8GEMM_EXT_SRC
+    "csrc/fbgemm_fp8_rowwise/torch_bindings.cpp"
+    "csrc/fbgemm_fp8_rowwise/custom_rowwise_gemm.cu"
+  )
+
+  find_package(composable_kernel REQUIRED)
+
+  set(fp8_supported_archs "gfx940" "gfx941" "gfx942")
+  define_gpu_extension_target(
+    _fp8gemm_C
+    DESTINATION vllm
+    LANGUAGE ${VLLM_GPU_LANG}
+    SOURCES ${VLLM_FP8GEMM_EXT_SRC}
+    COMPILE_FLAGS ${VLLM_GPU_FLAGS}
+    ARCHITECTURES ${fp8_supported_archs}
+    USE_SABI 3
+    WITH_SOABI
+    # LIBRARIES "composable_kernel"
+  )
+
 endif()
 
 # vllm-flash-attn currently only supported on CUDA
