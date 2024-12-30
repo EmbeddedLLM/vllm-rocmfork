@@ -1,6 +1,4 @@
 import argparse
-import copy
-import itertools
 import math
 import os
 import pickle as pkl
@@ -19,8 +17,7 @@ from vllm.model_executor.layers.quantization.utils.quant_utils import (
 from vllm.scalar_type import ScalarType, scalar_types
 from vllm.utils import FlexibleArgumentParser
 
-import vllm._fp8gemm_C # noqa: F401
-from vllm import _custom_ops as ops
+import vllm._fp8gemm_C  # noqa: F401
 from vllm.platforms import current_platform
 
 assert current_platform.is_rocm()
@@ -99,8 +96,11 @@ def quantize_and_pack(atype: torch.dtype,
     return w_ref, w_q, w_s, w_zp
 
 
-def create_bench_tensors(shape: Tuple[int, int, int], types: TypeConfig,
-                         group_size: Optional[int], workload_type_memory_hierarchy:str="L2") -> List[BenchmarkTensors]:
+def create_bench_tensors(
+        shape: Tuple[int, int, int],
+        types: TypeConfig,
+        group_size: Optional[int],
+        workload_type_memory_hierarchy: str = "L2") -> List[BenchmarkTensors]:
     m, n, k = shape
 
     # For MI300X
@@ -132,10 +132,6 @@ def create_bench_tensors(shape: Tuple[int, int, int], types: TypeConfig,
         a_scale = rand_data((m, 1), torch.float32, scale=5)
         w_scale = rand_data((n, 1), torch.float32, scale=5)
 
-        if not a.dtype.is_floating_point:
-            aiinfo = torch.iinfo(a.dtype)
-            w_ref = w_ref.round().clamp(aiinfo.min, aiinfo.max)
-
         benchmark_tensors.append(
             BenchmarkTensors(w_ref=w,
                              a=a,
@@ -161,11 +157,14 @@ def torch_matmul_f16_create_bench_fn(bt: BenchmarkTensors) -> Callable:
 # FP8 benchmark functions
 def fp8_row_create_bench_fn(bt: BenchmarkTensors) -> Callable:
 
-    w_q = bt.w_q.transpose(1,0).contiguous()
+    w_q = bt.w_q.transpose(1, 0).contiguous()
+
     def run_gemm() -> torch.Tensor:
-        return torch.ops._fp8gemm_C.f8f8bf16_rowwise(bt.a_q, w_q, bt.w_tok_s, bt.w_ch_s, None, True)
+        return torch.ops._fp8gemm_C.f8f8bf16_rowwise(bt.a_q, w_q, bt.w_tok_s,
+                                                     bt.w_ch_s, None, True)
 
     return run_gemm
+
 
 def bench_fns(label: str, sub_label: str, description: str,
               fns: List[Callable]):
@@ -203,10 +202,12 @@ def bench(types: TypeConfig,
           n: int,
           label: str,
           sub_label: str,
-          workload_type_memory_hierarchy:str,
+          workload_type_memory_hierarchy: str,
           sweep_schedules: bool = True) -> List[TMeasurement]:
-    benchmark_tensors = create_bench_tensors((m, n, k), types, group_size, workload_type_memory_hierarchy)
-    sub_label += f", L={len(benchmark_tensors)}+Mem_{workload_type_memory_hierarchy}"
+    benchmark_tensors = create_bench_tensors((m, n, k), types, group_size,
+                                             workload_type_memory_hierarchy)
+    sub_label += f", L={len(benchmark_tensors)}"
+    sub_label += f"+Mem_{workload_type_memory_hierarchy}"
 
     name_type_string = f"W{types.weight_type}"+\
                        f"-A{terse_type_name(types.act_type)}"
@@ -228,13 +229,11 @@ def bench(types: TypeConfig,
             label, sub_label, "torch.matmul (fp16)",
             [torch_matmul_f16_create_bench_fn(bt)
              for bt in benchmark_tensors]))
-    
+
     # FP8 benchmarks
     timers.append(
-        bench_fns(label, sub_label, "fp8 row-wise gemm", [
-            fp8_row_create_bench_fn(bt)
-            for bt in benchmark_tensors
-        ]))
+        bench_fns(label, sub_label, "fp8 row-wise gemm",
+                  [fp8_row_create_bench_fn(bt) for bt in benchmark_tensors]))
 
     return timers
 
@@ -261,15 +260,16 @@ def run(args, MKNs: Iterable[Tuple[int, int, int]]) -> Iterable[TMeasurement]:
     results: List[TMeasurement] = []
     for m, k, n in MKNs:
         for workload_type_memory_hierarchy in ["L1", "L2", "L3"]:
-            timers = bench(types,
-                        args.group_size,
-                        m,
-                        k,
-                        n,
-                        f"{args.act_type}-gemm",
-                        f"MKN=({m}x{k}x{n})",
-                        workload_type_memory_hierarchy=workload_type_memory_hierarchy,
-                        sweep_schedules=args.sweep_schedules)
+            timers = bench(
+                types,
+                args.group_size,
+                m,
+                k,
+                n,
+                f"{args.act_type}-gemm",
+                f"MKN=({m}x{k}x{n})",
+                workload_type_memory_hierarchy=workload_type_memory_hierarchy,
+                sweep_schedules=args.sweep_schedules)
             print_timers(timers)
             results.extend(timers)
 
@@ -318,6 +318,7 @@ def run_range_bench(args):
     data = run(args, MKNs)
 
     make_output(data, MKNs, f"range_bench-{args.act_type}")
+
 
 def run_uc_bench(args):
     MKNs = [
@@ -372,7 +373,9 @@ Benchmark Machete GEMM.
         "--act-type",
         action=ToTorchDtype,
         required=True,
-        choices=['bfloat16', 'float16', 'int8', 'float8_e4m3fn', 'float8_e4m3fnuz'],
+        choices=[
+            'bfloat16', 'float16', 'int8', 'float8_e4m3fn', 'float8_e4m3fnuz'
+        ],
     )
     parser.add_argument(
         "--group-scale-type",
