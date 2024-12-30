@@ -374,7 +374,7 @@ Benchmark Machete GEMM.
         action=ToTorchDtype,
         required=True,
         choices=[
-            'bfloat16', 'float16', 'int8', 'float8_e4m3fn', 'float8_e4m3fnuz'
+            'float8_e4m3fnuz'
         ],
     )
     parser.add_argument(
