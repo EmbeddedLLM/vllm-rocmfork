@@ -181,7 +181,7 @@ def apply_fp8_linear_custom(
             # output = output * x_scale * weight_scale.t()
             # if bias is not None:
             #     output = output + bias
-            output = torch.ops._fp8gemm_C.f8f8bf16_rowwise(qinput, weight, x_scale, weight_scale, bias, True)
+            output = torch.ops._fp8gemm_C.f8f8bf16_rowwise(qinput, weight, x_scale, weight_scale, bias, True).t().contiguous()
             return output.to(dtype=input.dtype)
 
 

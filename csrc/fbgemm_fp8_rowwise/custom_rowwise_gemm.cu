@@ -6,6 +6,7 @@
 
 #include <hip/hip_bf16.h>
 #include <hip/hip_fp16.h>
+#include <hip/hip_fp8.h>
 
 #include "cuda_compat.h"
 
@@ -50,7 +51,7 @@ __device__ inline void initialize_smem(uint32_t* smem, uint32_t size) {
 }
 
 template <typename T>
-__device__ inline void swap_ptr(T* a, T* b) {
+__device__ inline void swap_ptr(T* &a, T* &b) {
     T* tmp = a;
     a = b;
     b = tmp;
@@ -63,14 +64,15 @@ __device__ inline void load_fp8_gds_to_lds_warp_32x32_packed4u32(
     uint32_t M_index_warp, uint32_t K_index_warp
 ) {
     // At the warp level
+    using _int4 = __attribute__((__vector_size__(4 * sizeof(uint32_t)))) uint32_t;
     const T* gds_head_elem = gds + (threadIdx.x / 2) * K;
-    auto* gds_packed = reinterpret_cast<const int4*>(gds_head_elem);
+    const _int4* gds_packed = reinterpret_cast<const _int4*>(gds_head_elem);
     gds_packed += (threadIdx.x % 2);
 
-    bool K_within_bound = (K_index_warp + 16 * (threadIdx.x % 2)) < K;
+    bool K_within_bound = (K_index_warp + BLOCK_K * (threadIdx.x % 2 + 1)) <= K;
     bool M_within_bound = (M_index_warp + threadIdx.x / 2) < M;
 
-    auto* lds_packed = reinterpret_cast<int4*>(lds);
+    _int4* lds_packed = reinterpret_cast<_int4*>(lds);
     // lds_packed += (threadIdx.x / 2) * 2 + (threadIdx.x % 2); // threadIdx.x;
     lds_packed += threadIdx.x;
 
@@ -78,6 +80,8 @@ __device__ inline void load_fp8_gds_to_lds_warp_32x32_packed4u32(
 
     if (K_within_bound && M_within_bound) {
         *lds_packed = *gds_packed;
+    } else {
+        *lds_packed = {0, 0, 0, 0};
     }
 }
 
@@ -136,12 +140,6 @@ __device__ inline uint32_t get_smem_element_offset_warp_32x16_u32(
     }
 }
 
-union _reg_load {
-    uint32_t regs_[2];
-    long long_;
-};
-
-
 __device__ inline void mfma_f32_32x32x16_fp8_fp8(
     const uint32_t * const A_warp_head, // indexed at warp level
     const uint32_t * const B_warp_head, // indexed at warp level
@@ -149,7 +147,12 @@ __device__ inline void mfma_f32_32x32x16_fp8_fp8(
     uint32_t A_row_stride,
     uint32_t B_row_stride
 ) {
-    using float16 = __attribute__((__vector_size__(16 * sizeof(float)))) float;
+    using floatx16 = __attribute__((__vector_size__(16 * sizeof(float)))) float;
+    using uint32x2 = __attribute__((__vector_size__(2 * sizeof(uint32_t)))) uint32_t;
+    union _reg_load {
+        uint32x2 regs_;
+        long long_;
+    };
     // warp-level workers
     for (uint32_t k_inner_iter = 0; k_inner_iter < BLOCKS_Z; ++k_inner_iter) {
         const uint32_t* A_warp_head_inner = A_warp_head + k_inner_iter * (BLOCK_K / 4);
@@ -160,7 +163,7 @@ __device__ inline void mfma_f32_32x32x16_fp8_fp8(
             a_regs.regs_[reg] = A_warp_head_inner[get_smem_element_offset_warp_32x16_u32<MatrixType::A>(threadIdx.x, reg, A_row_stride)];
             b_regs.regs_[reg] = B_warp_head_inner[get_smem_element_offset_warp_32x16_u32<MatrixType::B>(threadIdx.x, reg, B_row_stride)];
         }
-        float16* acc_block_f16 = reinterpret_cast<float16*>(acc_block);
+        floatx16* acc_block_f16 = reinterpret_cast<floatx16*>(acc_block);
         *acc_block_f16 = __builtin_amdgcn_mfma_f32_32x32x16_fp8_fp8(a_regs.long_, b_regs.long_, *acc_block_f16, 0, 0, 0);
     }
 }
@@ -277,13 +280,13 @@ __device__ inline void store_acc_to_gds_transposed(
                 uint32_t M_lane_reg_offset = M_warp_iter_head_offset + (8 * (reg / 4) % 32) + 4 * (lane_id / 32) + (reg % 4);
                 if (M_lane_reg_offset >= M) { continue; }
                 if constexpr (sizeof(TY) == 2) {
-                    using TY16 = __attribute__((__vector_size__(16 * 2))) uint16_t;
-                    TY16 buffer;
+                    using TY4 = __attribute__((__vector_size__(4 * 2))) uint16_t;
+                    TY buffer[4];
                     uint32_t acc_index_base = get_acc_index(warp_m, warp_n);
                     for (int rr = 0; rr < 4; ++rr) {
-                        buffer[rr] = static_cast<uint16_t>(acc[acc_index_base + rr]);
+                        buffer[rr] = static_cast<TY>(acc[get_acc_index(warp_m, warp_n) + reg + rr]);
                     }
-                    *(reinterpret_cast<TY16 *>(y_gds + N_offset_strided + M_lane_reg_offset)) = buffer;
+                    *(reinterpret_cast<TY4 *>(y_gds + N_offset_strided + M_lane_reg_offset)) = *(reinterpret_cast<TY4 *>(buffer));
                 } else {
                     *(reinterpret_cast<int4 *>(y_gds + N_offset_strided + M_lane_reg_offset)) = 
                         *(reinterpret_cast<int4 *>(acc + get_acc_index(warp_m, warp_n, reg)));
@@ -326,26 +329,27 @@ __global__ void f8f8f16_rowwise_kernel(
     initialize_smem(A_shared_load, A_tile_block_size_u32);
     initialize_smem(B_shared_load, B_tile_block_size_u32);
 
+    float acc[BLOCKS_X * BLOCKS_Y * 16];
+    for (uint32_t i = 0; i < BLOCKS_X * BLOCKS_Y * 16; ++i) {
+        acc[i] = 0.0f;
+    }
+
     const uint32_t M_index_tile = blockIdx.x * MBLOCKS_M; // head of threadblock
     const uint32_t N_index_tile = blockIdx.y * MBLOCKS_N; // head of threadblock
 
     const uint32_t k_iters = ceildiv(K, BLOCK_K * BLOCKS_Z);
     uint32_t K_index_tile = 0;
 
-    float acc[BLOCKS_X * BLOCKS_Y * 16];
-    for (uint32_t i = 0; i < BLOCKS_X; ++i) {
-        for (uint32_t j = 0; j < BLOCKS_Y; ++j) {
-            for (uint32_t k = 0; k < 16; ++k) {
-                acc[get_acc_index(i, j, k)] = 0;
-            }
-        }
-    }
+    __syncthreads();
 
     // Iteration #0 loading
     load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::A>(A_shared_load, xq, M, K, M_index_tile, K_index_tile);
     load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::B>(B_shared_load, wq, N, K, N_index_tile, K_index_tile);
+
     swap_ptr(A_shared_load, A_shared_eval);
     swap_ptr(B_shared_load, B_shared_eval);
+
+    __syncthreads();
 
     for (int kk = 1; kk < k_iters; ++kk) {
         // load
@@ -359,6 +363,7 @@ __global__ void f8f8f16_rowwise_kernel(
         // swap
         swap_ptr(A_shared_load, A_shared_eval);
         swap_ptr(B_shared_load, B_shared_eval);
+
         __syncthreads();
     }
     // Iteration #-1 computing
@@ -370,9 +375,8 @@ __global__ void f8f8f16_rowwise_kernel(
     apply_scale(x_scale_shared, w_scale, acc, N_index_tile, N);
     __syncthreads();
 
-    // Save the resultant matrix to gds in transpose to facilitate coalescence
+    // Save the result to gds in transpose to facilitate coalescence
     store_acc_to_gds_transposed(y, acc, M_index_tile, N_index_tile, M, N, M);
-
 }
 
 at::Tensor f8f8bf16_rowwise_impl(
@@ -389,7 +393,7 @@ at::Tensor f8f8bf16_rowwise_impl(
     dim3 grid(ceildiv(M, MBLOCKS_M), ceildiv(N, MBLOCKS_N), 1);
     dim3 block(LAUNCH_WARP_SIZE, MBLOCKS_X, MBLOCKS_Y);
 
-    const cudaStream_t stream = at::cuda::getCurrentHIPStream();
+    auto stream{torch::hip::getCurrentHIPStream().stream()};
 
 #define LAUNCH_KERNEL(TFY) \
         { \
@@ -405,16 +409,10 @@ at::Tensor f8f8bf16_rowwise_impl(
         }
 
     if (Y.dtype() == at::kFloat) {
-        // auto kernel = f8f8f16_rowwise_kernel<uint8_t, float, float>;
-        // kernel<<<grid, block, 0, 0>>>(XQ, WQ, x_scale, w_scale, Y, M, N, K);
         LAUNCH_KERNEL(float)
     } else if (Y.dtype() == at::kHalf) {
-        // auto kernel = f8f8f16_rowwise_kernel<uint8_t, float, __half>;
-        // kernel<<<grid, block, 0, 0>>>(XQ, WQ, x_scale, w_scale, Y, M, N, K);
         LAUNCH_KERNEL(__half)
     } else if (Y.dtype() == at::kBFloat16) {
-        // auto kernel = f8f8f16_rowwise_kernel<uint8_t, float, __hip_bfloat16>;
-        // kernel<<<grid, block, 0, 0>>>(XQ, WQ, x_scale, w_scale, Y, M, N, K);
         LAUNCH_KERNEL(__hip_bfloat16)
     }
     
@@ -457,10 +455,7 @@ at::Tensor f8f8bf16_rowwise_wrapper(
     at::Tensor Y;
     if (output.has_value()) {
         Y = output.value();
-        // // Make sure the provided output has the proper shape and dtype.
-        // int Y_M = size_to_dim_(Y.dim() - 1, Y.sizes());
-        // TORCH_CHECK(Y_M == N && Y.sizes().vec().back() == M, "Y must be transposed");
-        // TORCH_CHECK(Y.dtype() == at::kBFloat16);
+        // Make sure the provided output has the proper shape and dtype.
         if (Y.dim() >= 3) {
             int B = size_to_dim_(Y.dim() - 2, Y.sizes());
             int Y_M = Y.size(Y.dim() - 1);
@@ -477,9 +472,6 @@ at::Tensor f8f8bf16_rowwise_wrapper(
     } else {
         // 1. If the input tensor is {M, K}, the output tensor is {M, N}.
         // 2. If the input tensor is {b, M, K}, the output tensor is {b, M, N}.
-        // auto out_sizes = XQ.sizes().vec();
-        // out_sizes.back() = N;
-        // Y = at::empty((M, size_to_dim_(XQ.dim() - 1, XQ.sizes())), XQ.options().dtype(at::kBFloat16));
         if (XQ.dim() >= 3) {
             int B = size_to_dim_(XQ.dim() - 2, XQ.sizes());
             int X_M = XQ.size(XQ.dim() - 2);
@@ -487,8 +479,10 @@ at::Tensor f8f8bf16_rowwise_wrapper(
             Y = at::empty({B, W_N, X_M}, XQ.options().dtype(at::kBFloat16));
         } else if (XQ.dim() == 2) {
             int X_M = XQ.size(XQ.dim() - 2);
-            int W_N = WQ.size(WQ.dim() - 1);
+            int W_N = WQ.size(WQ.dim() - 2);
             Y = at::empty({W_N, X_M}, XQ.options().dtype(at::kBFloat16));
+        } else {
+            AT_ERROR("Output should at least have two dimensions");
         }
     }
 
