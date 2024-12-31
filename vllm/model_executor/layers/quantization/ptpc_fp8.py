@@ -65,6 +65,7 @@ class PTPCFp8Config(Fp8Config):
             return Fp8KVCacheMethod(self)
         return None
 
+TORCH_DEVICE_IDENTITY = torch.ones(1, dtype=torch.float32)
 
 def apply_fp8_linear_custom(
     input: torch.Tensor,
@@ -83,106 +84,27 @@ def apply_fp8_linear_custom(
 
     # View input as 2D matrix for fp8 methods
     input_2d = input.view(-1, input.shape[-1])
-    output_shape = [*input.shape[:-1], weight.shape[1]]
 
     if out_dtype is None:
         out_dtype = input.dtype
 
-    # cutlass_scaled_mm supports per tensor/channel W and per tensor/token A
-    if cutlass_fp8_supported:
+    def ceil_mX(val, x=32):
+        if val % x == 0:
+            return val
+        return (val + x - 1) // x * x
+    
+    if input.dtype != torch.float8_e4m3fnuz:
         qinput, x_scale = ops.scaled_fp8_quant(
             input_2d,
             input_scale,
-            scale_ub=input_scale_ub,
+            num_token_padding=ceil_mX(input_2d.shape[0], 16),
             use_per_token_if_dynamic=use_per_token_if_dynamic)
-
-        # Fused GEMM_DQ
-        output = ops.cutlass_scaled_mm(qinput,
-                                       weight,
-                                       out_dtype=input.dtype,
-                                       scale_a=x_scale,
-                                       scale_b=weight_scale,
-                                       bias=bias)
-        return output.view(*output_shape)
-
-    # torch.scaled_mm supports per tensor weights + activations only
-    # so fallback to naive if per channel or per token
     else:
-        # Note: we pad the input because torch._scaled_mm is more performant
-        # for matrices with batch dimension > 16.
-        # This could change in the future.
-        if input.dtype != torch.float8_e4m3fnuz:
-            qinput, x_scale = ops.scaled_fp8_quant(
-                input_2d,
-                input_scale,
-                num_token_padding=17,
-                use_per_token_if_dynamic=use_per_token_if_dynamic)
-        else:
-            qinput, x_scale = input_2d, input_scale
-
-        per_tensor_weights = (weight_scale.numel() == 1)
-        per_tensor_activations = (x_scale.numel() == 1)
-
-        if per_tensor_weights and per_tensor_activations:
-            # Fused GEMM_DQ
-            output = torch._scaled_mm(qinput,
-                                      weight,
-                                      out_dtype=out_dtype,
-                                      scale_a=x_scale,
-                                      scale_b=weight_scale,
-                                      bias=bias)
-            # A fix for discrepancy in scaled_mm which returns tuple
-            # for torch < 2.5 and a single value in torch >= 2.5
-            if type(output) is tuple and len(output) == 2:
-                output = output[0]
-
-            return torch.narrow(output, 0, 0,
-                                input_2d.shape[0]).view(*output_shape)
-
-        else:
-            # Fallback for channelwise case, where we use unfused DQ
-            # due to limitations with scaled_mm
-
-            # Symmetric quantized GEMM by definition computes the following:
-            #   C = (s_x * X) (s_w * W) + bias
-            # This is equivalent to dequantizing the weights and activations
-            # before applying a GEMM.
-            #
-            # In order to compute quantized operands, a quantized kernel
-            # will rewrite the above like so:
-            #   C = s_w * s_x * (X * W) + bias
-            #
-            # For the scaled_mm fallback case, we break this down, since it
-            # does not support s_w being a vector.
-
-            # Making sure the dummy tensor is on the same device as the weight
-            # global TORCH_DEVICE_IDENTITY
-            # if TORCH_DEVICE_IDENTITY.device != weight.device:
-            #     TORCH_DEVICE_IDENTITY = TORCH_DEVICE_IDENTITY.to(weight.device)
-
-            # GEMM
-            # This computes C = (X * W).
-            # Output in fp32 to allow subsequent ops to happen in-place
-            # output = torch._scaled_mm(qinput,
-            #                           weight,
-            #                           scale_a=TORCH_DEVICE_IDENTITY,
-            #                           scale_b=TORCH_DEVICE_IDENTITY,
-            #                           out_dtype=torch.float32)
-            # # A fix for discrepancy in scaled_mm which returns tuple
-            # # for torch < 2.5 and a single value in torch >= 2.5
-            # if type(output) is tuple and len(output) == 2:
-            #     output = output[0]
-            # # Unpad (undo num_token_padding)
-            # output = torch.narrow(output, 0, 0, input_2d.shape[0])
-            # x_scale = torch.narrow(x_scale, 0, 0, input_2d.shape[0])
-
-            # # DQ
-            # # C = sw * sx * (X * W) + bias
-            # output = output * x_scale * weight_scale.t()
-            # if bias is not None:
-            #     output = output + bias
-            output = torch.ops._fp8gemm_C.f8f8bf16_rowwise(qinput, weight, x_scale, weight_scale, bias, True).t().contiguous()
-            return output.to(dtype=input.dtype)
+        qinput, x_scale = input_2d, input_scale
+    
+    output = ops.f8f8bf16_rowwise(qinput, weight, x_scale, weight_scale, bias, True, out_dtype=out_dtype).t().contiguous()
+    output = torch.narrow(output, 0, 0, input_2d.shape[0])
+    return output
 
 
 class PTPCFp8LinearMethod(Fp8LinearMethod):

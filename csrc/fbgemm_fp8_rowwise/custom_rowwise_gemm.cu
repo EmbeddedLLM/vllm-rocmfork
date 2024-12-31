@@ -414,6 +414,8 @@ at::Tensor f8f8bf16_rowwise_impl(
         LAUNCH_KERNEL(__half)
     } else if (Y.dtype() == at::kBFloat16) {
         LAUNCH_KERNEL(__hip_bfloat16)
+    } else {
+        AT_ERROR("Not implemented output datatype. Must be one of {float, half, bfloat16}.");
     }
     
     return Y;
@@ -426,7 +428,8 @@ at::Tensor f8f8bf16_rowwise_wrapper(
     at::Tensor w_scale,
     std::optional<at::Tensor> bias, // not calculated
     bool use_fast_accum,
-    std::optional<at::Tensor> output = std::nullopt) {
+    std::optional<at::Tensor> output = std::nullopt,
+    std::optional<at::ScalarType> out_dtype = std::nullopt) {
     // Check that input datatypes are valid.
     TORCH_CHECK(
         (XQ.dtype() == at::kFloat8_e4m3fnuz) &&
@@ -451,6 +454,8 @@ at::Tensor f8f8bf16_rowwise_wrapper(
     TORCH_CHECK((K % 16) == 0, 
         "Cases where K is not divisible by 16 has not been implemented.");
 
+    at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
+
     // Prepare output tensor if needed.
     at::Tensor Y;
     if (output.has_value()) {
@@ -468,7 +473,7 @@ at::Tensor f8f8bf16_rowwise_wrapper(
         } else {
             AT_ERROR("Output should at least have two dimensions");
         }
-        TORCH_CHECK(Y.dtype() == at::kBFloat16);
+        TORCH_CHECK(Y.dtype() == _out_dtype);
     } else {
         // 1. If the input tensor is {M, K}, the output tensor is {M, N}.
         // 2. If the input tensor is {b, M, K}, the output tensor is {b, M, N}.
@@ -476,11 +481,11 @@ at::Tensor f8f8bf16_rowwise_wrapper(
             int B = size_to_dim_(XQ.dim() - 2, XQ.sizes());
             int X_M = XQ.size(XQ.dim() - 2);
             int W_N = WQ.size(WQ.dim() - 1);
-            Y = at::empty({B, W_N, X_M}, XQ.options().dtype(at::kBFloat16));
+            Y = at::empty({B, W_N, X_M}, XQ.options().dtype(_out_dtype));
         } else if (XQ.dim() == 2) {
             int X_M = XQ.size(XQ.dim() - 2);
             int W_N = WQ.size(WQ.dim() - 2);
-            Y = at::empty({W_N, X_M}, XQ.options().dtype(at::kBFloat16));
+            Y = at::empty({W_N, X_M}, XQ.options().dtype(_out_dtype));
         } else {
             AT_ERROR("Output should at least have two dimensions");
         }
@@ -498,23 +503,10 @@ at::Tensor f8f8bf16_rowwise(
     at::Tensor x_scale,
     at::Tensor w_scale,
     std::optional<at::Tensor> bias,
-    bool use_fast_accum
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype
 ) {
     // Invoke f8f8bf16 rowwise without preallocated output.
     return custom_fp8::f8f8bf16_rowwise_wrapper(
-        XQ, WQ, x_scale, w_scale, bias, use_fast_accum);
-}
-
-void f8f8bf16_rowwise_out(
-    at::Tensor XQ,
-    at::Tensor WQ,
-    at::Tensor x_scale,
-    at::Tensor w_scale,
-    at::Tensor output,
-    std::optional<at::Tensor> bias,
-    bool use_fast_accum
-) {
-    // Invoke f8f8bf16 rowwise without preallocated output.
-    custom_fp8::f8f8bf16_rowwise_wrapper(
-        XQ, WQ, x_scale, w_scale, bias, use_fast_accum, output);
+        XQ, WQ, x_scale, w_scale, bias, use_fast_accum, std::nullopt, out_dtype);
 }

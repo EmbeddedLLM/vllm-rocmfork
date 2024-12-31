@@ -25,6 +25,13 @@ with contextlib.suppress(ImportError):
     import vllm._moe_C  # noqa: F401
     supports_moe_ops = True
 
+if current_platform.is_rocm():
+    try:
+        import vllm._fp8gemm_C
+    except ImportError as e:
+        logger.warning("Failed to import from vllm._fp8gemm_C with %r."
+                       "This is completely fine with non-MI300 GPUs", e)
+
 # neuron has torch version that doesn't even have impl_abstract
 if TYPE_CHECKING or current_platform.is_neuron():
 
@@ -495,6 +502,17 @@ if hasattr(torch.ops._C, "ggml_dequantize"):
     ) -> torch.Tensor:
         batch = X.size(0)
         return torch.empty((batch, row), dtype=torch.float16, device=W.device)
+
+
+# ptpc_fp8
+def f8f8bf16_rowwise(xq: torch.Tensor,
+                     wq: torch.Tensor,
+                     x_scale: torch.Tensor,
+                     w_scale: torch.Tensor,
+                     bias: Optional[torch.Tensor] = None,
+                     use_fast_accum: bool = True,
+                     out_dtype: Optional[torch.dtype] = torch.bfloat16) -> torch.Tensor:
+    return torch.ops._fp8gemm_C.f8f8bf16_rowwise(xq, wq, x_scale, w_scale, bias, use_fast_accum, out_dtype)
 
 
 # cutlass

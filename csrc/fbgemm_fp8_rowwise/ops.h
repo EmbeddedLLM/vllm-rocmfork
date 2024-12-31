@@ -8,14 +8,6 @@ at::Tensor f8f8bf16_rowwise(
     at::Tensor x_scale,
     at::Tensor w_scale,
     std::optional<at::Tensor> bias,
-    bool use_fast_accum);
-
-void f8f8bf16_rowwise_out(
-    at::Tensor XQ,
-    at::Tensor WQ,
-    at::Tensor x_scale,
-    at::Tensor w_scale,
-    at::Tensor output,
-    std::optional<at::Tensor> bias,
-    bool use_fast_accum);
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
     
