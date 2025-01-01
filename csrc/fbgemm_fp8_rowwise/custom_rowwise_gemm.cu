@@ -29,9 +29,6 @@ constexpr uint32_t MBLOCKS_N = TBLOCKS_N * MBLOCKS_Y;
 
 constexpr uint32_t LAUNCH_WARP_SIZE = 64;
 
-// template <typename T>
-// __host__ __device__ inline T ceildiv(T a, T b) { return (a + b - 1) / b; }
-
 #define ceildiv(a, b) (((a) + (b) - 1) / (b))
 
 enum class MatrixType {
@@ -43,7 +40,7 @@ __device__ inline void initialize_smem(uint32_t* smem, uint32_t size) {
     uint32_t available_threads = blockDim.x * blockDim.y * blockDim.z;
     uint32_t num_iters = ceildiv(size, available_threads);
     for (int i = 0; i < num_iters; ++i) {
-        uint32_t id = threadIdx.z * (blockDim.y * blockDim.x) + threadIdx.y * blockDim.x + threadIdx.x;
+        uint32_t id = i * available_threads + threadIdx.z * (blockDim.y * blockDim.x) + threadIdx.y * blockDim.x + threadIdx.x;
         if (id < size) {
             smem[id] = 0x0;
         }
@@ -154,11 +151,13 @@ __device__ inline void mfma_f32_32x32x16_fp8_fp8(
         long long_;
     };
     // warp-level workers
+#pragma unroll
     for (uint32_t k_inner_iter = 0; k_inner_iter < BLOCKS_Z; ++k_inner_iter) {
         const uint32_t* A_warp_head_inner = A_warp_head + k_inner_iter * (BLOCK_K / 4);
         const uint32_t* B_warp_head_inner = B_warp_head + k_inner_iter * (BLOCK_K / 4);
         _reg_load a_regs;
         _reg_load b_regs;
+#pragma unroll
         for (int reg = 0; reg < 2; ++reg) {
             a_regs.regs_[reg] = A_warp_head_inner[get_smem_element_offset_warp_32x16_u32<MatrixType::A>(threadIdx.x, reg, A_row_stride)];
             b_regs.regs_[reg] = B_warp_head_inner[get_smem_element_offset_warp_32x16_u32<MatrixType::B>(threadIdx.x, reg, B_row_stride)];
@@ -177,9 +176,11 @@ __device__ inline void mfma_f32_64x64x32_fp8_fp8(
 ) {
     uint32_t warp_x = threadIdx.y;
     uint32_t warp_y = threadIdx.z;
+#pragma unroll
     for (uint32_t x_iter = 0; x_iter < BLOCKS_X; ++x_iter) {
         uint32_t x_load_block = warp_x * BLOCKS_X + x_iter;
         const uint32_t* A_warp_head = A_head_tb + x_load_block * BLOCK_M * A_row_stride;
+#pragma unroll
         for (uint32_t y_iter = 0; y_iter < BLOCKS_Y; ++y_iter) {
             uint32_t y_load_block = warp_y * BLOCKS_Y + y_iter;
             const uint32_t* B_warp_head = B_head_tb + y_load_block * BLOCK_N * B_row_stride;
@@ -240,7 +241,7 @@ __device__ inline void apply_scale(
         __syncthreads();
         float wscale = (wscale_offset_thread < wscale_size) ? 
             static_cast<float>(gds_wscale[wscale_offset_thread]) : 0.0f;
-
+#pragma unroll
         for (uint32_t warp_x = 0; warp_x < BLOCKS_X; ++warp_x) {
             float* acc_warp = acc + get_acc_index(warp_x, warp_y);
             const float* lds_xscale_warp_iter = lds_xscale_warp + warp_x * BLOCK_M;
@@ -250,6 +251,40 @@ __device__ inline void apply_scale(
                 acc_warp[reg] *= wscale;
                 acc_warp[reg] *= lds_xscale_warp_iter[(8 * (reg / 4) % 32) + 4 * (lane_id / 32) + (reg % 4)];
             }
+        }
+    }
+}
+
+template <typename TY, int NUM_ITEMS>
+__device__ inline void store_regs4_to_gds(
+    TY* gds_head, // indexed at the lane-reg head
+    const float* acc_index_base_reg // indexed at the lane-reg head
+) {
+    if constexpr (sizeof(TY) == 2) {
+        using TYO = __attribute__((__vector_size__(NUM_ITEMS * 2))) uint16_t;
+        TY buffer[NUM_ITEMS];
+#pragma unroll
+        for (int rr = 0; rr < NUM_ITEMS; ++rr) {
+            buffer[rr] = static_cast<TY>(acc_index_base_reg[rr]);
+        }
+        if constexpr (NUM_ITEMS == 3) {
+            using TY2 = __attribute__((__vector_size__(2 * 2))) uint16_t;
+            *(reinterpret_cast<TY2 *>(gds_head)) = *(reinterpret_cast<TY2 *>(buffer));
+            *(reinterpret_cast<TY *>(gds_head) + 2) = buffer[2];
+        } else {
+            *(reinterpret_cast<TYO *>(gds_head)) = *(reinterpret_cast<TYO *>(buffer));
+        }
+    } else {
+        using TYO = __attribute__((__vector_size__(NUM_ITEMS * 4))) uint32_t;
+        if constexpr (NUM_ITEMS == 3) {
+            // Handling the case where copying 12 words introduces padding of zeros to 16 words
+            using TY2 = __attribute__((__vector_size__(2 * 4))) uint32_t;
+            *(reinterpret_cast<TY2 *>(gds_head)) = 
+                            *(reinterpret_cast<const TY2 *>(acc_index_base_reg));
+            *(reinterpret_cast<TY *>(gds_head) + 2) = *(reinterpret_cast<const TY *>(acc_index_base_reg + 2));
+        } else {
+            *(reinterpret_cast<TYO *>(gds_head)) = 
+                            *(reinterpret_cast<const TYO *>(acc_index_base_reg));
         }
     }
 }
@@ -268,28 +303,28 @@ __device__ inline void store_acc_to_gds_transposed(
     const uint32_t lane_id = threadIdx.x;
     const uint32_t M_warp_head_offset = M_head_index + threadIdx.y * TBLOCKS_M;
     const uint32_t N_warp_head_offset = N_head_index + threadIdx.z * TBLOCKS_N;
+#pragma unroll
     for (uint32_t warp_m = 0; warp_m < BLOCKS_X; ++warp_m) {
         uint32_t M_warp_iter_head_offset = M_warp_head_offset + warp_m * BLOCK_M;
+#pragma unroll
         for (uint32_t warp_n = 0; warp_n < BLOCKS_Y; ++warp_n) {
             uint32_t N_warp_iter_head_offset = N_warp_head_offset + warp_n * BLOCK_N;
             uint32_t N_lane_reg_offset = N_warp_iter_head_offset + (lane_id % 32);
             if (N_lane_reg_offset >= N) { continue; }
             uint32_t N_offset_strided = N_lane_reg_offset * y_row_stride;
-
+#pragma unroll
             for (uint32_t reg = 0; reg < 16; reg += 4) {
                 uint32_t M_lane_reg_offset = M_warp_iter_head_offset + (8 * (reg / 4) % 32) + 4 * (lane_id / 32) + (reg % 4);
                 if (M_lane_reg_offset >= M) { continue; }
-                if constexpr (sizeof(TY) == 2) {
-                    using TY4 = __attribute__((__vector_size__(4 * 2))) uint16_t;
-                    TY buffer[4];
-                    uint32_t acc_index_base = get_acc_index(warp_m, warp_n);
-                    for (int rr = 0; rr < 4; ++rr) {
-                        buffer[rr] = static_cast<TY>(acc[get_acc_index(warp_m, warp_n) + reg + rr]);
-                    }
-                    *(reinterpret_cast<TY4 *>(y_gds + N_offset_strided + M_lane_reg_offset)) = *(reinterpret_cast<TY4 *>(buffer));
+                const uint32_t num_items = M - M_lane_reg_offset;
+                if (num_items > 3) {
+                    store_regs4_to_gds<TY, 4>(y_gds + N_offset_strided + M_lane_reg_offset, acc + get_acc_index(warp_m, warp_n) + reg);
+                } else if (num_items == 3) {
+                    store_regs4_to_gds<TY, 3>(y_gds + N_offset_strided + M_lane_reg_offset, acc + get_acc_index(warp_m, warp_n) + reg);
+                } else if (num_items == 2) {
+                    store_regs4_to_gds<TY, 2>(y_gds + N_offset_strided + M_lane_reg_offset, acc + get_acc_index(warp_m, warp_n) + reg);
                 } else {
-                    *(reinterpret_cast<int4 *>(y_gds + N_offset_strided + M_lane_reg_offset)) = 
-                        *(reinterpret_cast<int4 *>(acc + get_acc_index(warp_m, warp_n, reg)));
+                    store_regs4_to_gds<TY, 1>(y_gds + N_offset_strided + M_lane_reg_offset, acc + get_acc_index(warp_m, warp_n) + reg);
                 }
             }
 
@@ -330,6 +365,7 @@ __global__ void f8f8f16_rowwise_kernel(
     initialize_smem(B_shared_load, B_tile_block_size_u32);
 
     float acc[BLOCKS_X * BLOCKS_Y * 16];
+#pragma unroll
     for (uint32_t i = 0; i < BLOCKS_X * BLOCKS_Y * 16; ++i) {
         acc[i] = 0.0f;
     }
@@ -338,13 +374,12 @@ __global__ void f8f8f16_rowwise_kernel(
     const uint32_t N_index_tile = blockIdx.y * MBLOCKS_N; // head of threadblock
 
     const uint32_t k_iters = ceildiv(K, BLOCK_K * BLOCKS_Z);
-    uint32_t K_index_tile = 0;
 
     __syncthreads();
 
     // Iteration #0 loading
-    load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::A>(A_shared_load, xq, M, K, M_index_tile, K_index_tile);
-    load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::B>(B_shared_load, wq, N, K, N_index_tile, K_index_tile);
+    load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::A>(A_shared_load, xq, M, K, M_index_tile, 0);
+    load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::B>(B_shared_load, wq, N, K, N_index_tile, 0);
 
     swap_ptr(A_shared_load, A_shared_eval);
     swap_ptr(B_shared_load, B_shared_eval);
@@ -353,7 +388,7 @@ __global__ void f8f8f16_rowwise_kernel(
 
     for (int kk = 1; kk < k_iters; ++kk) {
         // load
-        K_index_tile += BLOCK_K * BLOCKS_Z;
+        const uint32_t K_index_tile = kk * BLOCK_K * BLOCKS_Z;
         load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::A>(A_shared_load, xq, M, K, M_index_tile, K_index_tile);
         load_fp8_gds_to_lds_tb_128x32_packed4u32<TF8, MatrixType::B>(B_shared_load, wq, N, K, N_index_tile, K_index_tile);
 

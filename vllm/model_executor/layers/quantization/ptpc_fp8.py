@@ -88,22 +88,15 @@ def apply_fp8_linear_custom(
     if out_dtype is None:
         out_dtype = input.dtype
 
-    def ceil_mX(val, x=32):
-        if val % x == 0:
-            return val
-        return (val + x - 1) // x * x
-    
     if input.dtype != torch.float8_e4m3fnuz:
         qinput, x_scale = ops.scaled_fp8_quant(
             input_2d,
             input_scale,
-            num_token_padding=ceil_mX(input_2d.shape[0], 16),
             use_per_token_if_dynamic=use_per_token_if_dynamic)
     else:
         qinput, x_scale = input_2d, input_scale
     
     output = ops.f8f8bf16_rowwise(qinput, weight, x_scale, weight_scale, bias, True, out_dtype=out_dtype).t().contiguous()
-    output = torch.narrow(output, 0, 0, input_2d.shape[0])
     return output
 
 
