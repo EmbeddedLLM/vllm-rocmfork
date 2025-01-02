@@ -1385,12 +1385,13 @@ __launch_bounds__(NUM_THREADS) void paged_attention_ll4mi_reduce_kernel(
   const int seq_idx = blockIdx.y;
   const int context_len = context_lens[seq_idx];
   const int num_partitions = DIVIDE_ROUND_UP(context_len, PARTITION_SIZE);
+#if 0 //disable this as mfma16 kernel does not support this optimization yet
   if (num_partitions == 1) {
     // if num_partitions==1, main kernel will write to out directly, no work in
     // reduction kernel
     return;
   }
-
+#endif
   constexpr int NUM_WARPS = NUM_THREADS / WARP_SIZE;
   const int warpid = threadIdx.x / WARP_SIZE;
   const int laneid = threadIdx.x % WARP_SIZE;
@@ -1575,7 +1576,7 @@ template <typename scalar_t, typename cache_t,
           vllm::Fp8KVCacheDataType KV_DTYPE, typename OUTT, int BLOCK_SIZE,
           int HEAD_SIZE, int NUM_THREADS,
           int GQA_RATIO>
-__global__ __launch_bounds__(NUM_THREADS) void paged_attention_ll4mi_QKV_kernel(
+__global__ __launch_bounds__(NUM_THREADS) void paged_attention_ll4mi_QKV_mfma16_kernel(
     const scalar_t* __restrict__ q,       // [num_seqs, num_heads, head_size]
     const cache_t* __restrict__ k_cache,  // [num_blocks, num_kv_heads,
                                           // head_size/x, block_size, x]
@@ -1602,7 +1603,7 @@ template <typename scalar_t, typename cache_t,
           vllm::Fp8KVCacheDataType KV_DTYPE, typename OUTT, int BLOCK_SIZE,
           int HEAD_SIZE, int NUM_THREADS,
           int GQA_RATIO>
-__global__ __launch_bounds__(NUM_THREADS) void paged_attention_ll4mi_QKV_mfma16_kernel(
+__global__ __launch_bounds__(NUM_THREADS) void paged_attention_ll4mi_QKV_kernel(
     const scalar_t* __restrict__ q,       // [num_seqs, num_heads, head_size]
     const cache_t* __restrict__ k_cache,  // [num_blocks, num_kv_heads,
                                           // head_size/x, block_size, x]
@@ -1643,8 +1644,8 @@ __launch_bounds__(NUM_THREADS) void paged_attention_ll4mi_reduce_kernel(
 
 #endif  // defined(__HIP__MI300_MI250__) TODO: Add NAVI support
 
-#define LAUNCH_CUSTOM_ATTENTION_MFMA16(GQA_RATIO)                             \
-  paged_attention_ll4mi_QKV_mfma16_kernel<T, KVT, KV_DTYPE, OUTT, BLOCK_SIZE, \
+#define LAUNCH_CUSTOM_ATTENTION_MFMA16(GQA_RATIO)                                    \
+  paged_attention_ll4mi_QKV_mfma16_kernel<T, KVT, KV_DTYPE, OUTT, BLOCK_SIZE,        \
                                    HEAD_SIZE, NTHR, GQA_RATIO>                \
       <<<grid, block, 0, stream>>>(                                           \
           query_ptr, key_cache_ptr, value_cache_ptr, num_kv_heads, scale,     \
@@ -1791,11 +1792,12 @@ void paged_attention_custom_launcher(
   //  case reduction kernel will still run but return immediately
 
   //below optimization is not yet implemented in mfma16 kernel
-  if (max_context_len > PARTITION_SIZE) {
+  //if (max_context_len > PARTITION_SIZE) {
     dim3 reduce_grid(num_heads, num_seqs);
     dim3 reduce_block(head_size);
     const int npar_loops = DIVIDE_ROUND_UP(max_num_partitions, WARP_SIZE);
     // support upto 8*64*256=128K context length
+
     switch (npar_loops) {
       case 1:
         LAUNCH_CUSTOM_REDUCTION(1);
@@ -1825,7 +1827,6 @@ void paged_attention_custom_launcher(
         TORCH_CHECK(false, "Unsupported npar_loops: ", npar_loops);
         break;
     }
-  }
 }
 
 #define CALL_CUSTOM_LAUNCHER(T, KVT, KV_DTYPE, BLK_SIZE, HEAD_SIZE, OUTT,      \
@@ -1846,6 +1847,7 @@ void paged_attention_custom_launcher(
       TORCH_CHECK(false, "Unsupported partition size: ", partition_size);     \
       break;                                                                  \
   }
+
 
 #if defined(__HIPCC__) && defined(__gfx90a__)
   #define CALL_CUSTOM_LAUNCHER_OUT(T, KVT, KV_DTYPE, BLK_SIZE, HEAD_SIZE)   \
@@ -1889,7 +1891,6 @@ void paged_attention_custom_launcher(
       TORCH_CHECK(false, "Unsupported head size: ", head_size); \
       break;                                                    \
   }
-
 
 void paged_attention(
     torch::Tensor& out,         // [num_seqs, num_heads, head_size]
