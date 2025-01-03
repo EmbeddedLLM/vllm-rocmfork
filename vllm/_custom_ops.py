@@ -515,6 +515,16 @@ def f8f8bf16_rowwise(xq: torch.Tensor,
     return torch.ops._fp8gemm_C.f8f8bf16_rowwise(xq, wq, x_scale, w_scale, bias, use_fast_accum, out_dtype)
 
 
+def f8f8bf16_rowwise_instr2(xq: torch.Tensor,
+                     wq: torch.Tensor,
+                     x_scale: torch.Tensor,
+                     w_scale: torch.Tensor,
+                     bias: Optional[torch.Tensor] = None,
+                     use_fast_accum: bool = True,
+                     out_dtype: Optional[torch.dtype] = torch.bfloat16) -> torch.Tensor:
+    return torch.ops._fp8gemm_C.f8f8bf16_rowwise_instr2(xq, wq, x_scale, w_scale, bias, use_fast_accum, out_dtype)
+
+
 # cutlass
 def cutlass_scaled_mm_supports_fp8(cuda_device_capability: int) -> bool:
     return torch.ops._C.cutlass_scaled_mm_supports_fp8(cuda_device_capability)
