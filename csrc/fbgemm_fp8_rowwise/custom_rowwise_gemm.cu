@@ -413,9 +413,9 @@ at::Tensor f8f8bf16_rowwise_impl(
     at::Tensor w_scale,
     at::Tensor Y
 ) {
-    constexpr uint32_t BLOCKS_X = 1;
-    constexpr uint32_t BLOCKS_Y = 1;
-    constexpr uint32_t BLOCKS_Z = 1;
+    constexpr uint32_t BLOCKS_X = 2;
+    constexpr uint32_t BLOCKS_Y = 2;
+    constexpr uint32_t BLOCKS_Z = 2;
     constexpr uint32_t MBLOCKS_X = 2;
     constexpr uint32_t MBLOCKS_Y = 2;
 
