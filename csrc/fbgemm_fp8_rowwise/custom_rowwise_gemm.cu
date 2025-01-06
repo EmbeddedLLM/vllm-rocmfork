@@ -14,6 +14,12 @@ constexpr uint32_t LAUNCH_WARP_SIZE = 64;
 
 #define ceildiv(a, b) (((a) + (b) - 1) / (b))
 
+__device__ inline float convert_fp8_to_float(const uint8_t* in) {
+    const __hip_fp8_storage_t* in_cvt = reinterpret_cast<const __hip_fp8_storage_t*>(in);
+    __half hf = __hip_cvt_fp8_to_halfraw(*in_cvt, __HIP_E4M3_FNUZ);
+    return __half2float(hf);
+}
+
 enum class MatrixType {
     A = 0,
     B = 1,
@@ -343,7 +349,7 @@ __global__ void f8f8f16_rowwise_kernel(
     uint32_t* A_shared_load = A_shared;
     uint32_t* A_shared_eval = A_shared + A_tile_block_size_u32;
     uint32_t* B_shared_load = B_shared;
-    uint32_t* B_shared_eval = B_shared + A_tile_block_size_u32;
+    uint32_t* B_shared_eval = B_shared + B_tile_block_size_u32;
 
     initialize_smem(A_shared_load, A_tile_block_size_u32);
     initialize_smem(B_shared_load, B_tile_block_size_u32);
@@ -413,11 +419,11 @@ at::Tensor f8f8bf16_rowwise_impl(
     at::Tensor w_scale,
     at::Tensor Y
 ) {
-    constexpr uint32_t BLOCKS_X = 2;
+    constexpr uint32_t BLOCKS_X = 1;
     constexpr uint32_t BLOCKS_Y = 2;
     constexpr uint32_t BLOCKS_Z = 2;
-    constexpr uint32_t MBLOCKS_X = 2;
-    constexpr uint32_t MBLOCKS_Y = 2;
+    constexpr uint32_t MBLOCKS_X = 1;
+    constexpr uint32_t MBLOCKS_Y = 4;
 
     int M = size_to_dim_(XQ.dim() - 1, XQ.sizes());
     int N = WQ.size(0);
@@ -569,9 +575,6 @@ __device__ inline void apply_scale_16x16x32(
                 const uint32_t xscale_elem_offset = xscale_iter_offset + 4 * (lane_id / 16) + (reg % 4);
                 acc_warp[reg] *= wscale;
                 acc_warp[reg] *= (M_index_tile + xscale_elem_offset < M) ? lds_xscale[xscale_elem_offset] : 0.0f;
-                // if (threadIdx.x == 48) {
-                //     printf("%d, %d, %d, %f, %f\n", M_index_tile, xscale_elem_offset, M, lds_xscale[xscale_elem_offset], acc_warp[reg]);
-                // }
             }
         }
     }
@@ -616,12 +619,6 @@ __device__ inline void store_acc_to_gds_transposed_16x16(
     }
 }
 
-__device__ inline float convert_fp8_to_float(const uint8_t* in) {
-    const __hip_fp8_storage_t* in_cvt = reinterpret_cast<const __hip_fp8_storage_t*>(in);
-    __half hf = __hip_cvt_fp8_to_halfraw(*in_cvt, __HIP_E4M3_FNUZ);
-    return __half2float(hf);
-}
-
 template <
     uint32_t BLOCKS_X, uint32_t BLOCKS_Y, uint32_t BLOCKS_Z,
     uint32_t MBLOCKS_X, uint32_t MBLOCKS_Y,
@@ -659,7 +656,7 @@ __global__ void f8f8f16_rowwise_kernel(
     uint32_t* A_shared_load = A_shared;
     uint32_t* A_shared_eval = A_shared + A_tile_block_size_u32;
     uint32_t* B_shared_load = B_shared;
-    uint32_t* B_shared_eval = B_shared + A_tile_block_size_u32;
+    uint32_t* B_shared_eval = B_shared + B_tile_block_size_u32;
 
     initialize_smem(A_shared_load, A_tile_block_size_u32);
     initialize_smem(B_shared_load, B_tile_block_size_u32);
@@ -936,8 +933,8 @@ at::Tensor f8f8bf16_rowwise(
     at::Tensor WQ,
     at::Tensor x_scale,
     at::Tensor w_scale,
-    std::optional<at::Tensor> bias,
-    bool use_fast_accum,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
     std::optional<at::ScalarType> out_dtype
 ) {
     // Invoke f8f8bf16 rowwise without preallocated output.
@@ -951,8 +948,8 @@ at::Tensor f8f8bf16_rowwise_instr2(
     at::Tensor WQ,
     at::Tensor x_scale,
     at::Tensor w_scale,
-    std::optional<at::Tensor> bias,
-    bool use_fast_accum,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
     std::optional<at::ScalarType> out_dtype
 ) {
     // Invoke f8f8bf16 rowwise without preallocated output.
