@@ -412,31 +412,84 @@ __global__ void f8f8f16_rowwise_kernel(
     store_acc_to_gds_transposed<BLOCKS_X, BLOCKS_Y, TY>(y, acc, M_index_tile, N_index_tile, M, N, M);
 }
 
+template <typename FuncT>
 at::Tensor f8f8bf16_rowwise_impl(
     at::Tensor XQ,
     at::Tensor WQ,
     at::Tensor x_scale,
     at::Tensor w_scale,
-    at::Tensor Y
+    at::Tensor Y,
+    FuncT launch_func
 ) {
-    constexpr uint32_t BLOCKS_X = 1;
-    constexpr uint32_t BLOCKS_Y = 2;
-    constexpr uint32_t BLOCKS_Z = 2;
-    constexpr uint32_t MBLOCKS_X = 1;
-    constexpr uint32_t MBLOCKS_Y = 4;
-
     int M = size_to_dim_(XQ.dim() - 1, XQ.sizes());
     int N = WQ.size(0);
     int K = WQ.size(1);
 
-    dim3 grid(ceildiv(M, BLOCK_M * BLOCKS_X * MBLOCKS_X), ceildiv(N, BLOCK_M * BLOCKS_Y * MBLOCKS_Y), 1);
-    dim3 block(LAUNCH_WARP_SIZE, MBLOCKS_X, MBLOCKS_Y);
+    launch_func(XQ, WQ, x_scale, w_scale, Y, M, N, K);
+    return Y;
+}
 
-    auto stream{torch::hip::getCurrentHIPStream().stream()};
+template <typename FuncT>
+at::Tensor f8f8bf16_rowwise_wrapper(
+    FuncT launch_func,
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    bool use_fast_accum,
+    at::ScalarType out_dtype) {
+    // Check that input datatypes are valid.
+    TORCH_CHECK(
+        (XQ.dtype() == at::kFloat8_e4m3fnuz) &&
+            (WQ.dtype() == at::kFloat8_e4m3fnuz),
+        "Inputs must be type float8_e4m3fnuz.");
+    TORCH_CHECK(
+        (x_scale.dtype() == at::kFloat) && (w_scale.dtype() == at::kFloat),
+        "Scales must be float32.");
+    TORCH_CHECK(use_fast_accum, "AMD does not support disabling use_fast_accum.");
 
-#define LAUNCH_KERNEL(TFY) \
+    // Check inputs are in expected format.
+    TORCH_CHECK(XQ.is_cuda() && XQ.is_contiguous());
+    TORCH_CHECK(WQ.is_cuda() && WQ.is_contiguous());
+
+    // XQ: M x K
+    // WQ: N x K
+    // output: M x N
+    int M = size_to_dim_(XQ.dim() - 1, XQ.sizes());
+    int N = WQ.size(0);
+    int K = WQ.size(1);
+
+    TORCH_CHECK((K % 16) == 0, 
+        "Cases where K is not divisible by 16 has not been implemented.");
+
+    // Prepare output tensor if needed.
+    at::Tensor Y;
+    // 1. If the input tensor is {M, K}, the output tensor is {M, N}.
+    // 2. If the input tensor is {b, M, K}, the output tensor is {b, M, N}.
+    if (XQ.dim() >= 3) {
+        int B = size_to_dim_(XQ.dim() - 2, XQ.sizes());
+        int X_M = XQ.size(XQ.dim() - 2);
+        int W_N = WQ.size(WQ.dim() - 1);
+        Y = at::empty({B, W_N, X_M}, XQ.options().dtype(out_dtype));
+    } else if (XQ.dim() == 2) {
+        int X_M = XQ.size(XQ.dim() - 2);
+        int W_N = WQ.size(WQ.dim() - 2);
+        Y = at::empty({W_N, X_M}, XQ.options().dtype(out_dtype));
+    } else {
+        AT_ERROR("Output should at least have two dimensions");
+    }
+
+    return f8f8bf16_rowwise_impl<FuncT>(XQ, WQ, x_scale, w_scale, Y, launch_func);
+}
+
+} // namespace custom_fp8_32x32x16
+
+#define LAUNCH_KERNEL_32x32x16(TFY, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
         { \
-        auto kernel = f8f8f16_rowwise_kernel<BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, uint8_t, float, TFY>; \
+        dim3 grid(ceildiv(M, custom_fp8_32x32x16::BLOCK_M * BLOCKS_X * MBLOCKS_X), ceildiv(N, custom_fp8_32x32x16::BLOCK_N * BLOCKS_Y * MBLOCKS_Y), 1); \
+        dim3 block(LAUNCH_WARP_SIZE, MBLOCKS_X, MBLOCKS_Y); \
+        auto stream{torch::hip::getCurrentHIPStream().stream()}; \
+        auto kernel = custom_fp8_32x32x16::f8f8f16_rowwise_kernel<BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, uint8_t, float, TFY>; \
         kernel<<<grid, block, 0, stream>>>( \
             reinterpret_cast<uint8_t*>(XQ.data_ptr()), \
             reinterpret_cast<uint8_t*>(WQ.data_ptr()), \
@@ -447,21 +500,41 @@ at::Tensor f8f8bf16_rowwise_impl(
         ); \
         }
 
-    if (Y.dtype() == at::kFloat) {
-        LAUNCH_KERNEL(float)
-    } else if (Y.dtype() == at::kHalf) {
-        LAUNCH_KERNEL(__half)
-    } else if (Y.dtype() == at::kBFloat16) {
-        LAUNCH_KERNEL(__hip_bfloat16)
-    } else {
-        AT_ERROR("Not implemented output datatype. Must be one of {float, half, bfloat16}.");
+#define LAUNCH_KERNEL_OUTTYPE_32x32x16(OUT_TYPE, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    if (OUT_TYPE == at::kFloat) { \
+        LAUNCH_KERNEL_32x32x16(float, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    } else if (OUT_TYPE == at::kHalf) { \
+        LAUNCH_KERNEL_32x32x16(__half, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    } else if (OUT_TYPE == at::kBFloat16) { \
+        LAUNCH_KERNEL_32x32x16(__hip_bfloat16, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    } else { \
+        AT_ERROR("Not implemented output datatype. Must be one of {float, half, bfloat16}."); \
     }
-    
-#undef LAUNCH_KERNEL
-    return Y;
+
+at::Tensor f8f8bf16_rowwise(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
+    std::optional<at::ScalarType> out_dtype
+) {
+    constexpr uint32_t BLOCKS_X = 2;
+    constexpr uint32_t BLOCKS_Y = 2;
+    constexpr uint32_t BLOCKS_Z = 2;
+    constexpr uint32_t MBLOCKS_X = 2;
+    constexpr uint32_t MBLOCKS_Y = 2;
+    const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
+    // Invoke f8f8bf16 rowwise without preallocated output.
+    return custom_fp8_32x32x16::f8f8bf16_rowwise_wrapper(
+        [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            LAUNCH_KERNEL_OUTTYPE_32x32x16(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K)
+        },
+        XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
+    );
 }
 
-} // namespace custom_fp8_32x32x16
 
 namespace custom_fp8_16x16x32 {
 
@@ -723,35 +796,84 @@ __global__ void f8f8f16_rowwise_kernel(
     store_acc_to_gds_transposed_16x16<BLOCKS_X, BLOCKS_Y>(y, acc, M_index_tile, N_index_tile, M, N, M);
 }
 
+template <typename FuncT>
 at::Tensor f8f8bf16_rowwise_impl(
     at::Tensor XQ,
     at::Tensor WQ,
     at::Tensor x_scale,
     at::Tensor w_scale,
-    at::Tensor Y
+    at::Tensor Y,
+    FuncT launch_func
 ) {
-    constexpr uint32_t BLOCKS_X = 2;
-    constexpr uint32_t BLOCKS_Y = 2;
-    constexpr uint32_t BLOCKS_Z = 2;
-    constexpr uint32_t MBLOCKS_X = 2;
-    constexpr uint32_t MBLOCKS_Y = 2;
-    constexpr uint32_t MBLOCKS_M = BLOCK_M * BLOCKS_X * MBLOCKS_X;
-    constexpr uint32_t MBLOCKS_N = BLOCK_N * BLOCKS_Y * MBLOCKS_Y;
-
     int M = size_to_dim_(XQ.dim() - 1, XQ.sizes());
     int N = WQ.size(0);
     int K = WQ.size(1);
 
-    TORCH_CHECK(K % (BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 16x");
+    launch_func(XQ, WQ, x_scale, w_scale, Y, M, N, K);
+    return Y;
+}
 
-    dim3 grid(ceildiv(M, MBLOCKS_M), ceildiv(N, MBLOCKS_N), 1);
-    dim3 block(LAUNCH_WARP_SIZE, MBLOCKS_X, MBLOCKS_Y);
+template <typename FuncT>
+at::Tensor f8f8bf16_rowwise_wrapper(
+    FuncT launch_func,
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    bool use_fast_accum,
+    at::ScalarType out_dtype) {
+    // Check that input datatypes are valid.
+    TORCH_CHECK(
+        (XQ.dtype() == at::kFloat8_e4m3fnuz) &&
+            (WQ.dtype() == at::kFloat8_e4m3fnuz),
+        "Inputs must be type float8_e4m3fnuz.");
+    TORCH_CHECK(
+        (x_scale.dtype() == at::kFloat) && (w_scale.dtype() == at::kFloat),
+        "Scales must be float32.");
+    TORCH_CHECK(use_fast_accum, "AMD does not support disabling use_fast_accum.");
 
-    auto stream{torch::hip::getCurrentHIPStream().stream()};
+    // Check inputs are in expected format.
+    TORCH_CHECK(XQ.is_cuda() && XQ.is_contiguous());
+    TORCH_CHECK(WQ.is_cuda() && WQ.is_contiguous());
 
-#define LAUNCH_KERNEL(TFY) \
+    // XQ: M x K
+    // WQ: N x K
+    // output: M x N
+    int M = size_to_dim_(XQ.dim() - 1, XQ.sizes());
+    int N = WQ.size(0);
+    int K = WQ.size(1);
+
+    TORCH_CHECK((K % 16) == 0, 
+        "Cases where K is not divisible by 16 has not been implemented.");
+
+    // Prepare output tensor if needed.
+    at::Tensor Y;
+    // 1. If the input tensor is {M, K}, the output tensor is {M, N}.
+    // 2. If the input tensor is {b, M, K}, the output tensor is {b, M, N}.
+    if (XQ.dim() >= 3) {
+        int B = size_to_dim_(XQ.dim() - 2, XQ.sizes());
+        int X_M = XQ.size(XQ.dim() - 2);
+        int W_N = WQ.size(WQ.dim() - 1);
+        Y = at::empty({B, W_N, X_M}, XQ.options().dtype(out_dtype));
+    } else if (XQ.dim() == 2) {
+        int X_M = XQ.size(XQ.dim() - 2);
+        int W_N = WQ.size(WQ.dim() - 2);
+        Y = at::empty({W_N, X_M}, XQ.options().dtype(out_dtype));
+    } else {
+        AT_ERROR("Output should at least have two dimensions");
+    }
+
+    return f8f8bf16_rowwise_impl<FuncT>(XQ, WQ, x_scale, w_scale, Y, launch_func);
+}
+
+} // namespace custom_fp8_16x16x32
+
+#define LAUNCH_KERNEL_16x16x32(TFY, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
         { \
-        auto kernel = f8f8f16_rowwise_kernel<BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, uint8_t, float, TFY>; \
+        dim3 grid(ceildiv(M, custom_fp8_16x16x32::BLOCK_M * BLOCKS_X * MBLOCKS_X), ceildiv(N, custom_fp8_16x16x32::BLOCK_N * BLOCKS_Y * MBLOCKS_Y), 1); \
+        dim3 block(LAUNCH_WARP_SIZE, MBLOCKS_X, MBLOCKS_Y); \
+        auto stream{torch::hip::getCurrentHIPStream().stream()}; \
+        auto kernel = custom_fp8_16x16x32::f8f8f16_rowwise_kernel<BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, uint8_t, float, TFY>; \
         kernel<<<grid, block, 0, stream>>>( \
             reinterpret_cast<uint8_t*>(XQ.data_ptr()), \
             reinterpret_cast<uint8_t*>(WQ.data_ptr()), \
@@ -762,186 +884,16 @@ at::Tensor f8f8bf16_rowwise_impl(
         ); \
         }
 
-    if (Y.dtype() == at::kFloat) {
-        LAUNCH_KERNEL(float)
-    } else if (Y.dtype() == at::kHalf) {
-        LAUNCH_KERNEL(__half)
-    } else if (Y.dtype() == at::kBFloat16) {
-        LAUNCH_KERNEL(__hip_bfloat16)
-    } else {
-        AT_ERROR("Not implemented output datatype. Must be one of {float, half, bfloat16}.");
+#define LAUNCH_KERNEL_OUTTYPE_16x16x32(OUT_TYPE, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    if (OUT_TYPE == at::kFloat) { \
+        LAUNCH_KERNEL_16x16x32(float, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    } else if (OUT_TYPE == at::kHalf) { \
+        LAUNCH_KERNEL_16x16x32(__half, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    } else if (OUT_TYPE == at::kBFloat16) { \
+        LAUNCH_KERNEL_16x16x32(__hip_bfloat16, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
+    } else { \
+        AT_ERROR("Not implemented output datatype. Must be one of {float, half, bfloat16}."); \
     }
-    
-#undef LAUNCH_KERNEL
-    return Y;
-}
-
-
-} // namespace custom_fp8_16x16x32
-
-
-at::Tensor f8f8bf16_rowwise_wrapper(
-    at::Tensor XQ,
-    at::Tensor WQ,
-    at::Tensor x_scale,
-    at::Tensor w_scale,
-    std::optional<at::Tensor> bias, // not calculated
-    bool use_fast_accum,
-    std::optional<at::Tensor> output = std::nullopt,
-    std::optional<at::ScalarType> out_dtype = std::nullopt) {
-    // Check that input datatypes are valid.
-    TORCH_CHECK(
-        (XQ.dtype() == at::kFloat8_e4m3fnuz) &&
-            (WQ.dtype() == at::kFloat8_e4m3fnuz),
-        "Inputs must be type float8_e4m3fnuz.");
-    TORCH_CHECK(
-        (x_scale.dtype() == at::kFloat) && (w_scale.dtype() == at::kFloat),
-        "Scales must be float32.");
-    TORCH_CHECK(use_fast_accum, "AMD does not support disabling use_fast_accum.");
-
-    // Check inputs are in expected format.
-    TORCH_CHECK(XQ.is_cuda() && XQ.is_contiguous());
-    TORCH_CHECK(WQ.is_cuda() && WQ.is_contiguous());
-
-    // XQ: M x K
-    // WQ: N x K
-    // output: M x N
-    int M = size_to_dim_(XQ.dim() - 1, XQ.sizes());
-    int N = WQ.size(0);
-    int K = WQ.size(1);
-
-    TORCH_CHECK((K % 16) == 0, 
-        "Cases where K is not divisible by 16 has not been implemented.");
-
-    at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
-
-    // Prepare output tensor if needed.
-    at::Tensor Y;
-    if (output.has_value()) {
-        Y = output.value();
-        // Make sure the provided output has the proper shape and dtype.
-        if (Y.dim() >= 3) {
-            int B = size_to_dim_(Y.dim() - 2, Y.sizes());
-            int Y_M = Y.size(Y.dim() - 1);
-            int Y_N = Y.size(Y.dim() - 2);
-            TORCH_CHECK(Y_M*B == M && Y_N == N, "Y must be transposed");
-        } else if (Y.dim() == 2) {
-            int Y_M = Y.size(Y.dim() - 1);
-            int Y_N = Y.size(Y.dim() - 2);
-            TORCH_CHECK(Y_M == M && Y_N == N, "Y must be transposed");
-        } else {
-            AT_ERROR("Output should at least have two dimensions");
-        }
-        TORCH_CHECK(Y.dtype() == _out_dtype);
-    } else {
-        // 1. If the input tensor is {M, K}, the output tensor is {M, N}.
-        // 2. If the input tensor is {b, M, K}, the output tensor is {b, M, N}.
-        if (XQ.dim() >= 3) {
-            int B = size_to_dim_(XQ.dim() - 2, XQ.sizes());
-            int X_M = XQ.size(XQ.dim() - 2);
-            int W_N = WQ.size(WQ.dim() - 1);
-            Y = at::empty({B, W_N, X_M}, XQ.options().dtype(_out_dtype));
-        } else if (XQ.dim() == 2) {
-            int X_M = XQ.size(XQ.dim() - 2);
-            int W_N = WQ.size(WQ.dim() - 2);
-            Y = at::empty({W_N, X_M}, XQ.options().dtype(_out_dtype));
-        } else {
-            AT_ERROR("Output should at least have two dimensions");
-        }
-    }
-
-    return custom_fp8_32x32x16::f8f8bf16_rowwise_impl(XQ, WQ, x_scale, w_scale, Y);
-}
-
-
-at::Tensor f8f8bf16_rowwise_wrapper_instr2(
-    at::Tensor XQ,
-    at::Tensor WQ,
-    at::Tensor x_scale,
-    at::Tensor w_scale,
-    std::optional<at::Tensor> bias, // not calculated
-    bool use_fast_accum,
-    std::optional<at::Tensor> output = std::nullopt,
-    std::optional<at::ScalarType> out_dtype = std::nullopt) {
-    // Check that input datatypes are valid.
-    TORCH_CHECK(
-        (XQ.dtype() == at::kFloat8_e4m3fnuz) &&
-            (WQ.dtype() == at::kFloat8_e4m3fnuz),
-        "Inputs must be type float8_e4m3fnuz.");
-    TORCH_CHECK(
-        (x_scale.dtype() == at::kFloat) && (w_scale.dtype() == at::kFloat),
-        "Scales must be float32.");
-    TORCH_CHECK(use_fast_accum, "AMD does not support disabling use_fast_accum.");
-
-    // Check inputs are in expected format.
-    TORCH_CHECK(XQ.is_cuda() && XQ.is_contiguous());
-    TORCH_CHECK(WQ.is_cuda() && WQ.is_contiguous());
-
-    // XQ: M x K
-    // WQ: N x K
-    // output: M x N
-    int M = size_to_dim_(XQ.dim() - 1, XQ.sizes());
-    int N = WQ.size(0);
-    int K = WQ.size(1);
-
-    TORCH_CHECK((K % 16) == 0, 
-        "Cases where K is not divisible by 16 has not been implemented.");
-
-    at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
-
-    // Prepare output tensor if needed.
-    at::Tensor Y;
-    if (output.has_value()) {
-        Y = output.value();
-        // Make sure the provided output has the proper shape and dtype.
-        if (Y.dim() >= 3) {
-            int B = size_to_dim_(Y.dim() - 2, Y.sizes());
-            int Y_M = Y.size(Y.dim() - 1);
-            int Y_N = Y.size(Y.dim() - 2);
-            TORCH_CHECK(Y_M*B == M && Y_N == N, "Y must be transposed");
-        } else if (Y.dim() == 2) {
-            int Y_M = Y.size(Y.dim() - 1);
-            int Y_N = Y.size(Y.dim() - 2);
-            TORCH_CHECK(Y_M == M && Y_N == N, "Y must be transposed");
-        } else {
-            AT_ERROR("Output should at least have two dimensions");
-        }
-        TORCH_CHECK(Y.dtype() == _out_dtype);
-    } else {
-        // 1. If the input tensor is {M, K}, the output tensor is {M, N}.
-        // 2. If the input tensor is {b, M, K}, the output tensor is {b, M, N}.
-        if (XQ.dim() >= 3) {
-            int B = size_to_dim_(XQ.dim() - 2, XQ.sizes());
-            int X_M = XQ.size(XQ.dim() - 2);
-            int W_N = WQ.size(WQ.dim() - 1);
-            Y = at::empty({B, W_N, X_M}, XQ.options().dtype(_out_dtype));
-        } else if (XQ.dim() == 2) {
-            int X_M = XQ.size(XQ.dim() - 2);
-            int W_N = WQ.size(WQ.dim() - 2);
-            Y = at::empty({W_N, X_M}, XQ.options().dtype(_out_dtype));
-        } else {
-            AT_ERROR("Output should at least have two dimensions");
-        }
-    }
-
-    return custom_fp8_16x16x32::f8f8bf16_rowwise_impl(XQ, WQ, x_scale, w_scale, Y);
-}
-
-
-at::Tensor f8f8bf16_rowwise(
-    at::Tensor XQ,
-    at::Tensor WQ,
-    at::Tensor x_scale,
-    at::Tensor w_scale,
-    std::optional<at::Tensor> bias, // Not implemented
-    bool use_fast_accum, // Not implemented
-    std::optional<at::ScalarType> out_dtype
-) {
-    // Invoke f8f8bf16 rowwise without preallocated output.
-    return f8f8bf16_rowwise_wrapper(
-        XQ, WQ, x_scale, w_scale, bias, use_fast_accum, std::nullopt, out_dtype);
-}
-
 
 at::Tensor f8f8bf16_rowwise_instr2(
     at::Tensor XQ,
@@ -952,7 +904,18 @@ at::Tensor f8f8bf16_rowwise_instr2(
     bool use_fast_accum, // Not implemented
     std::optional<at::ScalarType> out_dtype
 ) {
+    constexpr uint32_t BLOCKS_X = 2;
+    constexpr uint32_t BLOCKS_Y = 2;
+    constexpr uint32_t BLOCKS_Z = 2;
+    constexpr uint32_t MBLOCKS_X = 2;
+    constexpr uint32_t MBLOCKS_Y = 2;
+    const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
     // Invoke f8f8bf16 rowwise without preallocated output.
-    return f8f8bf16_rowwise_wrapper_instr2(
-        XQ, WQ, x_scale, w_scale, bias, use_fast_accum, std::nullopt, out_dtype);
+    return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper(
+        [_out_dtype, BLOCKS_Z](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            LAUNCH_KERNEL_OUTTYPE_16x16x32(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K)
+        },
+        XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
+    );
 }
