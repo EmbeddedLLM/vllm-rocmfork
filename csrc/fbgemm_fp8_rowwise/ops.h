@@ -19,4 +19,7 @@ at::Tensor f8f8bf16_rowwise_instr2(
     std::optional<at::Tensor> bias,
     bool use_fast_accum,
     std::optional<at::ScalarType> out_dtype);
+
+// definitions of benchmarking ops
+#include "kernel/ops.h"
     

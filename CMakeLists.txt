@@ -548,7 +548,13 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
     "csrc/fbgemm_fp8_rowwise/gemm_kernel.cu"
   )
 
-  find_package(composable_kernel REQUIRED)
+  message(${VLLM_FP8GEMM_EXT_SRC})
+
+  file(GLOB VLLM_FP8GEMM_EXT_SRC_BM "csrc/fbgemm_fp8_rowwise/kernel/*.cu")
+  foreach(GFILE ${VLLM_FP8GEMM_EXT_SRC_BM})
+    file(RELATIVE_PATH RFILE "${CMAKE_SOURCE_DIR}" "${GFILE}")
+    list(APPEND VLLM_FP8GEMM_EXT_SRC ${RFILE})
+  endforeach()
 
   set(fp8_supported_archs "gfx940" "gfx941" "gfx942")
   define_gpu_extension_target(

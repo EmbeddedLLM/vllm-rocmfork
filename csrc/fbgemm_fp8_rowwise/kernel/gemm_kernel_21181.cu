@@ -1,12 +1,14 @@
-#include "fp8_gemm_common.cuh"
+
+#include <cuda_runtime.h>
+#include "../fp8_gemm_common_hip.cuh"
 
 constexpr uint32_t BLOCKS_X = 2;
-constexpr uint32_t BLOCKS_Y = 2;
-constexpr uint32_t BLOCKS_Z = 2;
-constexpr uint32_t MBLOCKS_X = 2;
-constexpr uint32_t MBLOCKS_Y = 2;
+constexpr uint32_t BLOCKS_Y = 1;
+constexpr uint32_t BLOCKS_Z = 1;
+constexpr uint32_t MBLOCKS_X = 8;
+constexpr uint32_t MBLOCKS_Y = 1;
 
-at::Tensor f8f8bf16_rowwise(
+at::Tensor f8f8bf16_rowwise_32x32x16_21181(
     at::Tensor XQ,
     at::Tensor WQ,
     at::Tensor x_scale,
@@ -25,7 +27,7 @@ at::Tensor f8f8bf16_rowwise(
     );
 }
 
-at::Tensor f8f8bf16_rowwise_instr2(
+at::Tensor f8f8bf16_rowwise_16x16x32_21181(
     at::Tensor XQ,
     at::Tensor WQ,
     at::Tensor x_scale,
