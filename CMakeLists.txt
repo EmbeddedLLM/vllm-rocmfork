@@ -545,7 +545,7 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
   #
   set(VLLM_FP8GEMM_EXT_SRC
     "csrc/fbgemm_fp8_rowwise/torch_bindings.cpp"
-    "csrc/fbgemm_fp8_rowwise/custom_rowwise_gemm.cu"
+    "csrc/fbgemm_fp8_rowwise/gemm_kernel.cu"
   )
 
   find_package(composable_kernel REQUIRED)
@@ -560,7 +560,6 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
     ARCHITECTURES ${fp8_supported_archs}
     USE_SABI 3
     WITH_SOABI
-    # LIBRARIES "composable_kernel"
   )
 
 endif()
