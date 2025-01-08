@@ -1258,6 +1258,177 @@ at::Tensor f8f8bf16_rowwise_16x16x32_42118(
     std::optional<at::ScalarType> out_dtype);
 
 
+at::Tensor f8f8bf16_rowwise_32x32x16_111116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_112116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_112116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_121116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_121116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_211116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_211116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_212116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_212116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_221116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_221116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_411116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_411116(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_111132(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111132(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_211132(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_211132(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
 at::Tensor f8f8bf16_rowwise_32x32x16_11121(
     at::Tensor XQ,
     at::Tensor WQ,
@@ -2360,6 +2531,101 @@ at::Tensor f8f8bf16_rowwise_16x16x32_41128(
     std::optional<at::ScalarType> out_dtype);
 
 
+at::Tensor f8f8bf16_rowwise_32x32x16_111216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_112216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_112216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_121216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_121216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_211216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_211216(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_111232(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111232(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
 at::Tensor f8f8bf16_rowwise_32x32x16_11141(
     at::Tensor XQ,
     at::Tensor WQ,
@@ -3196,6 +3462,25 @@ at::Tensor f8f8bf16_rowwise_16x16x32_21148(
     std::optional<at::ScalarType> out_dtype);
 
 
+at::Tensor f8f8bf16_rowwise_32x32x16_111416(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111416(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
 at::Tensor f8f8bf16_rowwise_32x32x16_11181(
     at::Tensor XQ,
     at::Tensor WQ,
@@ -3700,6 +3985,291 @@ at::Tensor f8f8bf16_rowwise_32x32x16_11188(
     std::optional<at::ScalarType> out_dtype);
 
 at::Tensor f8f8bf16_rowwise_16x16x32_11188(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_111161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_112161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_112161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_121161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_121161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_122161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_122161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_141161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_141161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_211161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_211161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_221161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_221161(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_111162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_112162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_112162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_121162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_121162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_211162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_211162(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_111164(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111164(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_111321(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111321(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_121321(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_121321(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+
+at::Tensor f8f8bf16_rowwise_32x32x16_111322(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor f8f8bf16_rowwise_16x16x32_111322(
     at::Tensor XQ,
     at::Tensor WQ,
     at::Tensor x_scale,

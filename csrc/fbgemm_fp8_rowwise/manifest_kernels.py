@@ -157,8 +157,8 @@ if __name__ == "__main__":
 
     configs: List[Config] = []
 
-    for mblocks_x in [1, 2, 4, 8]:
-        for mblocks_y in [1, 2, 4, 8]:
+    for mblocks_x in [1, 2, 4, 8, 16, 32]:
+        for mblocks_y in [1, 2, 4, 8, 16, 32]:
             for blocks_x in [1, 2, 4]:
                 for blocks_y in [1, 2, 4]:
                     for blocks_z in [1, 2]:
@@ -171,7 +171,11 @@ if __name__ == "__main__":
                             MBLOCKS_X=mblocks_x,
                             MBLOCKS_Y=mblocks_y
                         )
-                        if config.generate_suffix() in ["14218", "41281"]:
+                        if config.generate_suffix() in [
+                            "14218", "41281",
+                            "112132", "211321", "112321", "121132",
+                            "122116", "212161", "411161", "141116",
+                        ]:
                             continue
                         configs.append(config)
     

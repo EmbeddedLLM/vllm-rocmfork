@@ -332,6 +332,51 @@
     fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_42118(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_42118); \
     fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_42118", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_42118); \
 \
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111116", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111116); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111116", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111116); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_112116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_112116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_112116", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_112116); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_112116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_112116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_112116", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_112116); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_121116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_121116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_121116", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_121116); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_121116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_121116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_121116", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_121116); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_211116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_211116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_211116", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_211116); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_211116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_211116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_211116", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_211116); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_212116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_212116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_212116", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_212116); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_212116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_212116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_212116", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_212116); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_221116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_221116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_221116", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_221116); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_221116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_221116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_221116", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_221116); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_411116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_411116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_411116", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_411116); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_411116(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_411116); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_411116", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_411116); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111132(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111132); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111132", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111132); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111132(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111132); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111132", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111132); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_211132(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_211132); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_211132", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_211132); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_211132(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_211132); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_211132", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_211132); \
+\
     fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_11121(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_11121); \
     fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_11121", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_11121); \
     fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_11121(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_11121); \
@@ -622,6 +667,31 @@
     fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_41128(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_41128); \
     fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_41128", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_41128); \
 \
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111216", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111216); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111216", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111216); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_112216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_112216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_112216", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_112216); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_112216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_112216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_112216", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_112216); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_121216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_121216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_121216", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_121216); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_121216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_121216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_121216", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_121216); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_211216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_211216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_211216", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_211216); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_211216(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_211216); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_211216", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_211216); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111232(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111232); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111232", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111232); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111232(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111232); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111232", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111232); \
+\
     fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_11141(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_11141); \
     fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_11141", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_11141); \
     fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_11141(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_11141); \
@@ -842,6 +912,11 @@
     fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_21148(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_21148); \
     fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_21148", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_21148); \
 \
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111416(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111416); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111416", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111416); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111416(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111416); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111416", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111416); \
+\
     fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_11181(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_11181); \
     fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_11181", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_11181); \
     fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_11181(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_11181); \
@@ -976,4 +1051,79 @@
     fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_11188", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_11188); \
     fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_11188(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_11188); \
     fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_11188", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_11188); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111161", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111161); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111161", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111161); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_112161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_112161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_112161", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_112161); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_112161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_112161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_112161", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_112161); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_121161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_121161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_121161", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_121161); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_121161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_121161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_121161", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_121161); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_122161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_122161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_122161", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_122161); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_122161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_122161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_122161", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_122161); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_141161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_141161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_141161", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_141161); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_141161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_141161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_141161", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_141161); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_211161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_211161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_211161", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_211161); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_211161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_211161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_211161", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_211161); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_221161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_221161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_221161", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_221161); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_221161(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_221161); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_221161", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_221161); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111162", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111162); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111162", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111162); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_112162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_112162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_112162", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_112162); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_112162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_112162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_112162", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_112162); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_121162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_121162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_121162", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_121162); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_121162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_121162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_121162", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_121162); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_211162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_211162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_211162", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_211162); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_211162(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_211162); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_211162", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_211162); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111164(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111164); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111164", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111164); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111164(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111164); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111164", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111164); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111321(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111321); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111321", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111321); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111321(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111321); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111321", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111321); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_121321(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_121321); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_121321", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_121321); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_121321(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_121321); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_121321", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_121321); \
+\
+    fp8gemm_ops.def("f8f8bf16_rowwise_32x32x16_111322(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_32x32x16_111322); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_32x32x16_111322", torch::kCUDA, &f8f8bf16_rowwise_32x32x16_111322); \
+    fp8gemm_ops.def("f8f8bf16_rowwise_16x16x32_111322(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &f8f8bf16_rowwise_16x16x32_111322); \
+    fp8gemm_ops.impl("f8f8bf16_rowwise_16x16x32_111322", torch::kCUDA, &f8f8bf16_rowwise_16x16x32_111322); \
 \
