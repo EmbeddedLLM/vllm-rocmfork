@@ -312,6 +312,14 @@ class scalar_types:
     int8 = ScalarType.int_(8, None)
     uint8 = ScalarType.uint(8, None)
     float8_e4m3fn = ScalarType.float_(4, 3, True, NanRepr.EXTD_RANGE_MAX_MIN)
+    float8_e4m3fnuz = ScalarType(
+        exponent=4,                # 4 exponent bits
+        mantissa=3,                # 3 mantissa bits
+        signed=True,               # Has a sign bit
+        bias=8,                    # Bias of 8
+        _finite_values_only=True,  # No infinities
+        nan_repr=NanRepr.EXTD_RANGE_MAX_MIN  # NaN representation
+    )
     float8_e5m2 = ScalarType.float_IEEE754(5, 2)
     float16_e8m7 = ScalarType.float_IEEE754(8, 7)
     float16_e5m10 = ScalarType.float_IEEE754(5, 10)

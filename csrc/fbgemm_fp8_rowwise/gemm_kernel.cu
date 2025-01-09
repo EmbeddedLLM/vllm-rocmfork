@@ -334,7 +334,15 @@ static const std::unordered_map<std::tuple<int, int, int>, KernelType, TripletHa
     {{8192,8192, 1024}, f8f8bf16_rowwise_16x16x32_24142},
     {{8192,8192, 2048}, f8f8bf16_rowwise_16x16x32_24142},
     {{8192,8192, 8192}, f8f8bf16_rowwise_16x16x32_24181},
-    {{8192,8192,16384}, f8f8bf16_rowwise_16x16x32_44141}
+    {{8192,8192,16384}, f8f8bf16_rowwise_16x16x32_44141},
+    {{  32,8192, 1280}, f8f8bf16_rowwise_16x16x32_11221},
+    {{8192,  32, 1280}, f8f8bf16_rowwise_16x16x32_11211},
+    {{  32,1024, 8192}, f8f8bf16_rowwise_16x16x32_11211},
+    {{1024,  32, 8192}, f8f8bf16_rowwise_16x16x32_11211},
+    {{  32,8192, 7168}, f8f8bf16_rowwise_16x16x32_11212},
+    {{8192,  32, 7168}, f8f8bf16_rowwise_16x16x32_11212},
+    {{  32,3584, 8192}, f8f8bf16_rowwise_16x16x32_11221},
+    {{3584,  32, 8192}, f8f8bf16_rowwise_16x16x32_11211}
 };
 
 at::Tensor f8f8bf16_rowwise(

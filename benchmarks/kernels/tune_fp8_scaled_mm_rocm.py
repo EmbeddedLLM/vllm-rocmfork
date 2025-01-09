@@ -12,9 +12,34 @@ from vllm.utils import STR_DTYPE_TO_TORCH_DTYPE, FlexibleArgumentParser
 
 from fp8_scaled_mm_rocm_kernels import FP8_GEMM_KERNELS as KERNELS
 
-M = [1, 16, 32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1280, 2048, 3072, 3584, 4096, 5120, 6144, 7168, 8192]
-N = [1, 16, 32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1280, 2048, 3072, 3584, 4096, 5120, 6144, 7168, 8192]
-K = [1024, 1280, 2048, 4096, 7168, 8192, 16384]
+MNKs = []
+
+# M = [1, 16, 32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1280, 2048, 3072, 3584, 4096, 5120, 6144, 7168, 8192]
+# N = [1, 16, 32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1280, 2048, 3072, 3584, 4096, 5120, 6144, 7168, 8192]
+# K = [1024, 1280, 2048, 4096, 7168, 8192, 16384]
+# for m in M:
+#     for n in N:
+#         for k in K:
+            # MNKs.append((m, n, k))
+
+
+# MKNs
+#         (32, 1280, 8192),
+#         (32, 8192, 1024),
+#         (32, 7168, 8192),
+#         (32, 8192, 3584),
+
+
+MNKs += [
+    (32, 8192, 1280),
+    (8192, 32, 1280),
+    (32, 1024, 8192),
+    (1024, 32, 8192),
+    (32, 8192, 7168),
+    (8192, 32, 7168),
+    (32, 3584, 8192),
+    (3584, 32, 8192),
+]
 
 def rand_data(shape, dtype=torch.float16, scale=1):
     return (scale * torch.rand(shape, device="cuda") - 0.3).to(dtype)
@@ -87,69 +112,67 @@ def main(save_file: str,
     x_dt = torch.float8_e4m3fnuz
     w_dt = torch.float8_e4m3fnuz
     scale_dt = torch.float32
-    for m in M:
-        for n in N:
-            for k in K:
-                print("===============================")
-                dim_seq.append((m, n, k))
-                xqs = [rand_data((m, k), x_dt, 5) for _ in range(num_iters + num_warmup_iters)]
-                wqs = [rand_data((n, k), w_dt, 5) for _ in range(num_iters + num_warmup_iters)]
-                x_scales = [rand_data((m, 1), scale_dt, 5) for _ in range(num_iters + num_warmup_iters)]
-                w_scales = [rand_data((n, 1), scale_dt, 5) for _ in range(num_iters + num_warmup_iters)]
+    for m, n, k in MNKs:
+        print("===============================")
+        dim_seq.append((m, n, k))
+        xqs = [rand_data((m, k), x_dt, 5) for _ in range(num_iters + num_warmup_iters)]
+        wqs = [rand_data((n, k), w_dt, 5) for _ in range(num_iters + num_warmup_iters)]
+        x_scales = [rand_data((m, 1), scale_dt, 5) for _ in range(num_iters + num_warmup_iters)]
+        w_scales = [rand_data((n, 1), scale_dt, 5) for _ in range(num_iters + num_warmup_iters)]
 
-                latencies = []
+        latencies = []
 
-                for kernel in benchmark_kernels:
-                    if do_profile:
-                        latency = run_benchmark(
-                            kernel, xqs, wqs, x_scales, w_scales, 
-                            num_warmup_iters=num_warmup_iters, num_iters=1, profile=True)
-                    else:
-                        latency = run_benchmark(
-                            kernel, xqs, wqs, x_scales, w_scales, 
-                            num_warmup_iters=num_warmup_iters, num_iters=num_iters, profile=False)
-                        
+        for kernel in benchmark_kernels:
+            if do_profile:
+                latency = run_benchmark(
+                    kernel, xqs, wqs, x_scales, w_scales, 
+                    num_warmup_iters=num_warmup_iters, num_iters=1, profile=True)
+            else:
+                latency = run_benchmark(
+                    kernel, xqs, wqs, x_scales, w_scales, 
+                    num_warmup_iters=num_warmup_iters, num_iters=num_iters, profile=False)
+                
 
-                    xq = torch.rand((m, k))
-                    xq = xq.to(dtype=torch.float8_e4m3fnuz)
-                    wq = torch.rand((n, k))
-                    wq = wq.to(dtype=torch.float8_e4m3fnuz)
-                    x_scale = torch.rand((m,1), dtype=torch.float)
-                    w_scale = torch.rand((n,1), dtype=torch.float)
+            xq = torch.rand((m, k))
+            xq = xq.to(dtype=torch.float8_e4m3fnuz)
+            wq = torch.rand((n, k))
+            wq = wq.to(dtype=torch.float8_e4m3fnuz)
+            x_scale = torch.rand((m,1), dtype=torch.float)
+            w_scale = torch.rand((n,1), dtype=torch.float)
 
-                    output = kernel(xq, wq, x_scale, w_scale, None, True, out_dtype=torch.bfloat16).t()
+            output = kernel(xq, wq, x_scale, w_scale, None, True, out_dtype=torch.bfloat16).t()
 
-                    torch.cuda.synchronize()
+            torch.cuda.synchronize()
 
-                    try:
-                        ref_output = torch._scaled_mm(xq, wq.t(), scale_a=identity, scale_b=identity, out_dtype=torch.float32)
-                        ref_output = ref_output * x_scale * w_scale.t()
-                        ref_output = ref_output.to(dtype=torch.bfloat16)
+            try:
+                ref_output = torch._scaled_mm(xq, wq.t(), scale_a=identity, scale_b=identity, out_dtype=torch.float32)
+                ref_output = ref_output * x_scale * w_scale.t()
+                ref_output = ref_output.to(dtype=torch.bfloat16)
 
-                        if not torch.allclose(output, ref_output, rtol=1e-2, atol=1e-5):
-                            print("!!!!!! [{}, {}, {}] - {} Failed correctness test".format(m, n, k, kernel.__name__))
-                            latency = 1000.0
-                    except RuntimeError:
-                        pass
+                if not torch.allclose(output, ref_output, rtol=1e-2, atol=1e-5):
+                    print("!!!!!! [{}, {}, {}] - {} Failed correctness test".format(m, n, k, kernel.__name__))
+                    latency = 1000.0
+            except RuntimeError:
+                pass
 
-                    # Not part of the validation
-                    latencies.append(latency)
-                    print("[{}, {}, {}] - {}: {:.3f}us".format(m, n, k, kernel.__name__, latency * 1000000))
+            # Not part of the validation
+            latencies.append(latency)
+            print("[{}, {}, {}] - {}: {:.3f}us".format(m, n, k, kernel.__name__, latency * 1000000))
 
-                # reference
-                wqs_t = [wq.t().contiguous() for wq in wqs]
-                try:
-                    latency = run_benchmark(
-                        reference_scaled_mm_kernel, xqs, wqs_t, x_scales, w_scales, 
-                        num_warmup_iters=num_warmup_iters, num_iters=1 if do_profile else num_iters, profile=do_profile)
-                except RuntimeError:
-                    latency = -1
+        # reference
+        wqs_t = [wq.t().contiguous() for wq in wqs]
+        try:
+            latency = run_benchmark(
+                reference_scaled_mm_kernel, xqs, wqs_t, x_scales, w_scales, 
+                num_warmup_iters=num_warmup_iters, num_iters=1 if do_profile else num_iters, profile=do_profile)
+        except RuntimeError:
+            latency = -1
 
-                latencies.append(latency)
-                print("[{}, {}, {}] - {}: {:.3f}us".format(m, n, k, "reference_scaled_mm_kernel", latency * 1000000))
+        latencies.append(latency)
+        print("[{}, {}, {}] - {}: {:.3f}us".format(m, n, k, "reference_scaled_mm_kernel", latency * 1000000))
 
-                with open(save_file, "a") as f:
-                    f.write("{}_{}_{}, ".format(m, n, k) + ", ".join([str(l*1000000.0) for l in latencies]) + "\n")
+        with open(save_file, "a") as f:
+            f.write("{}_{}_{}, ".format(m, n, k) + ", ".join([str(l*1000000.0) for l in latencies]) + "\n")
 
     # print(f"Kernel running time: {latency * 1000000:.3f} us")
 

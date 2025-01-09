@@ -108,7 +108,7 @@ __device__ inline void load_scale_gds_to_lds_vanilla(
 
     const uint32_t thread_id_flattened = threadIdx.x + LAUNCH_WARP_SIZE * (threadIdx.y + MBLOCKS_X * threadIdx.z);
 
-    __syncthreads();
+    // __syncthreads();
 #pragma unroll
     for (uint32_t iter = 0; iter < num_iters; ++iter) {
         const uint32_t item_id = thread_id_flattened + iter * available_workers;
@@ -119,7 +119,7 @@ __device__ inline void load_scale_gds_to_lds_vanilla(
             lds[item_id] = 0.0f;
         }
     }
-    __syncthreads();
+    // __syncthreads();
 }
 
 template <typename TY, int NUM_ITEMS>
@@ -404,12 +404,14 @@ __global__ void f8f8f16_rowwise_kernel(
 
         __syncthreads();
     }
+    float* x_scale_shared = reinterpret_cast<float*>(A_shared_load);
+    load_scale_gds_to_lds_vanilla<BLOCK_M, BLOCK_N, BLOCKS_X, BLOCKS_Y, MBLOCKS_X, MBLOCKS_Y, TF32, MatrixType::A>(x_scale, x_scale_shared, M_index_tile, M);
+
     // Iteration #-1 computing
     mfma_f32_64x64x32_fp8_fp8<BLOCKS_X, BLOCKS_Y, BLOCKS_Z>(A_shared_eval, B_shared_eval, acc, A_row_stride, B_row_stride);
 
+    __syncthreads();
     // Apply scales
-    float* x_scale_shared = reinterpret_cast<float*>(A_shared_load);
-    load_scale_gds_to_lds_vanilla<BLOCK_M, BLOCK_N, BLOCKS_X, BLOCKS_Y, MBLOCKS_X, MBLOCKS_Y, TF32, MatrixType::A>(x_scale, x_scale_shared, M_index_tile, M);
     apply_scale<BLOCKS_X, BLOCKS_Y, BLOCKS_Z>(x_scale_shared, w_scale, acc, N_index_tile, N);
     __syncthreads();
 
@@ -755,9 +757,6 @@ __global__ void f8f8f16_rowwise_kernel(
 
         __syncthreads();
     }
-    mfma_tb_f32_16x16x32_fp8_fp8<BLOCKS_X, BLOCKS_Y, BLOCKS_Z>(
-        A_shared_eval, B_shared_eval, acc, A_row_stride, B_row_stride
-    );
 
     float* x_scale_shared = reinterpret_cast<float*>(A_shared_load);
     float* w_scale_shared = reinterpret_cast<float*>(B_shared_load);
@@ -767,7 +766,12 @@ __global__ void f8f8f16_rowwise_kernel(
     load_scale_gds_to_lds_vanilla<BLOCK_M, BLOCK_N, BLOCKS_X, BLOCKS_Y, MBLOCKS_X, MBLOCKS_Y, TF32, MatrixType::B>(
         w_scale, w_scale_shared, N_index_tile, N
     );
+
+    mfma_tb_f32_16x16x32_fp8_fp8<BLOCKS_X, BLOCKS_Y, BLOCKS_Z>(
+        A_shared_eval, B_shared_eval, acc, A_row_stride, B_row_stride
+    );
     
+    __syncthreads();
     apply_scale_16x16x32<BLOCKS_X, BLOCKS_Y, MBLOCKS_X, MBLOCKS_Y>(
         x_scale_shared, w_scale_shared, acc, M_index_tile, N_index_tile, M, N
     );
