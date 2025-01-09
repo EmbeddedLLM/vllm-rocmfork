@@ -97,7 +97,6 @@ def apply_fp8_linear_custom(
         qinput, x_scale = input_2d, input_scale
     
     output = ops.f8f8bf16_rowwise(weight, qinput, weight_scale, x_scale, bias, True, out_dtype=out_dtype)
-    print(input.shape, qinput.shape, weight.shape)
     if bias is not None:
         output = output + bias
     return output
