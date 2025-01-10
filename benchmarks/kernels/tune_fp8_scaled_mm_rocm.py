@@ -14,21 +14,13 @@ from fp8_scaled_mm_rocm_kernels import FP8_GEMM_KERNELS as KERNELS
 
 MNKs = []
 
-# M = [1, 16, 32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1280, 2048, 3072, 3584, 4096, 5120, 6144, 7168, 8192]
-# N = [1, 16, 32, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1280, 2048, 3072, 3584, 4096, 5120, 6144, 7168, 8192]
-# K = [1024, 1280, 2048, 4096, 7168, 8192, 16384]
-# for m in M:
-#     for n in N:
-#         for k in K:
-            # MNKs.append((m, n, k))
-
-
-# MKNs
-#         (32, 1280, 8192),
-#         (32, 8192, 1024),
-#         (32, 7168, 8192),
-#         (32, 8192, 3584),
-
+M = [1, 16, 32, 64, 96, 128, 256, 512, 1024, 1280, 2048, 3584, 4096, 7168, 8192]
+N = [1, 16, 32, 64, 96, 128, 256, 512, 1024, 1280, 2048, 3584, 4096, 7168, 8192]
+K = [1024, 1280, 2048, 4096, 7168, 8192, 16384]
+for m in M:
+    for n in N:
+        for k in K:
+            MNKs.append((m, n, k))
 
 MNKs += [
     (32, 8192, 1280),
@@ -191,10 +183,10 @@ if __name__ == '__main__':
 
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--profile", action="store_true")
-    parser.add_argument("--num-warmup-iters", type=int, default=10)
+    parser.add_argument("--num-warmup-iters", type=int, default=5)
     parser.add_argument("--num-iters",
                         type=int,
-                        default=200,
+                        default=100,
                         help="Number of benchmark iterations. "
                         "If --profile is set, this number is ignored")
     
