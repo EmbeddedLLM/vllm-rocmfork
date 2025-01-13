@@ -675,6 +675,101 @@ __device__ inline void store_acc_to_gds_transposed_16x16(
     }
 }
 
+template <int BLOCKS_X, int BLOCKS_Y, typename TY>
+__device__ inline void store_acc_to_gds_transposed_16x16_packed4u32(
+    TY* y_gds,
+    float* acc,
+    uint32_t M_head_index, // col head id
+    uint32_t N_head_index, // row head id
+    uint32_t M,
+    uint32_t N,
+    uint32_t y_row_stride // should be M
+) {
+    if constexpr (sizeof(TY) == 4 || (((BLOCKS_X * BLOCKS_Y) % 2) == 1)) {
+        store_acc_to_gds_transposed_16x16<BLOCKS_X, BLOCKS_Y, TY>(y_gds, acc, M_head_index, N_head_index, M, N, y_row_stride);
+        return; 
+    } else {
+        // For sizeof(TY) == 2 and BLOCKS_X * BLOCKS_Y = 2x
+        static_assert(sizeof(TY) == 2);
+        static_assert((BLOCKS_X * BLOCKS_Y) % 2 == 0);
+        const uint32_t lane_id = threadIdx.x;
+        const uint32_t M_warp_head_offset = M_head_index + threadIdx.y * BLOCK_M * BLOCKS_X;
+        const uint32_t N_warp_head_offset = N_head_index + threadIdx.z * BLOCK_N * BLOCKS_Y;
+
+        const bool second_block = ((threadIdx.x / 16) % 2 == 1);
+
+        using uint32x2 = __attribute__((__vector_size__(2 * sizeof(uint32_t)))) uint32_t;
+        using uint32x4 = __attribute__((__vector_size__(4 * sizeof(uint32_t)))) uint32_t;
+        union tx_buffer_t {
+            TY f16[8];
+            uint32x2 u64[2];
+        };
+        union ex_buffer_t {
+            TY f16[4];
+            unsigned long long u64;
+        };
+
+        constexpr uint32_t num_blocks = BLOCKS_X * BLOCKS_Y;
+        constexpr uint32_t num_iters = ceildiv(num_blocks, 2);
+
+#pragma unroll
+        for (uint32_t block_iter = 0; block_iter < num_iters; ++block_iter) {
+            const uint32_t block_id_flattened_tx = block_iter * 2 + second_block;
+            const uint32_t block_id_flattened_ex = block_iter * 2 + (!second_block);
+            const uint32_t warp_n = block_id_flattened_tx / BLOCKS_X;
+            const uint32_t warp_m = block_id_flattened_tx % BLOCKS_X;
+            const uint32_t warp_n_ex = block_id_flattened_ex / BLOCKS_X;
+            const uint32_t warp_m_ex = block_id_flattened_ex % BLOCKS_X;
+
+            const uint32_t N_warp_iter_head_offset = N_warp_head_offset + warp_n * BLOCK_N;
+            const uint32_t M_warp_iter_head_offset = M_warp_head_offset + warp_m * BLOCK_M;
+
+            ex_buffer_t ex_buffer;
+#pragma unroll
+            for (size_t i = 0; i < 4; ++i) {
+                (ex_buffer.f16)[i] = static_cast<TY>(*(acc + get_acc_index<BLOCKS_X, BLOCKS_Y, 4>(warp_m_ex, warp_n_ex, i)));
+            } 
+            ex_buffer.u64 = __shfl_xor(ex_buffer.u64, 0x00000010);
+
+            tx_buffer_t tx_buffer;
+            TY* tx_buffer_ty = reinterpret_cast<TY*>(&tx_buffer);
+            const uint32_t tx_buffer_offset_native = 4 * second_block;
+            const uint32_t tx_buffer_offset_transf = 4 * (!second_block);
+#pragma unroll
+            for (size_t i = 0; i < 4; ++i) {
+                tx_buffer.f16[tx_buffer_offset_native + i] = static_cast<TY>(*(acc + get_acc_index<BLOCKS_X, BLOCKS_Y, 4>(warp_m, warp_n, i)));
+                tx_buffer.f16[tx_buffer_offset_transf + i] = ex_buffer.f16[i];
+            }
+
+            const uint32_t N_lane_reg_offset = N_warp_iter_head_offset + (lane_id % 16);
+            if (N_lane_reg_offset >= N) { continue; }
+
+            const uint32_t M_lane_reg_offset = M_warp_iter_head_offset + 8 * (lane_id / 32);
+            if (M_lane_reg_offset >= M) { continue; }
+
+            const int num_items = (M - M_lane_reg_offset) > 8 ? 8 : (M - M_lane_reg_offset);
+            int tx_offset = 0; // in steps of type TY
+            while (tx_offset < num_items) {
+                const int remaining_items = num_items - tx_offset;
+                if (remaining_items >= 8) {
+                    store_regs4_to_gds<float, 4>(reinterpret_cast<float*>(y_gds + N_lane_reg_offset * y_row_stride + M_lane_reg_offset + tx_offset), reinterpret_cast<const float*>(tx_buffer_ty + tx_offset));
+                    tx_offset += 8;
+                } else if (remaining_items >= 4) {
+                    store_regs4_to_gds<float, 2>(reinterpret_cast<float*>(y_gds + N_lane_reg_offset * y_row_stride + M_lane_reg_offset + tx_offset), reinterpret_cast<const float*>(tx_buffer_ty + tx_offset));
+                    tx_offset += 4;
+                } else if (remaining_items >= 2) {
+                    store_regs4_to_gds<float, 1>(reinterpret_cast<float*>(y_gds + N_lane_reg_offset * y_row_stride + M_lane_reg_offset + tx_offset), reinterpret_cast<const float*>(tx_buffer_ty + tx_offset));
+                    tx_offset += 2;
+                } else {
+                    float item_f32 = static_cast<float>(*(tx_buffer_ty + tx_offset));
+                    store_regs4_to_gds<TY, 1>(y_gds + N_lane_reg_offset * y_row_stride + M_lane_reg_offset + tx_offset, &item_f32);
+                    tx_offset += 1;
+                }
+            }
+        }
+    }
+}
+
 template <
     uint32_t BLOCKS_X, uint32_t BLOCKS_Y, uint32_t BLOCKS_Z,
     uint32_t MBLOCKS_X, uint32_t MBLOCKS_Y,
@@ -779,6 +874,7 @@ __global__ void f8f8f16_rowwise_kernel(
     __syncthreads();
 
     store_acc_to_gds_transposed_16x16<BLOCKS_X, BLOCKS_Y>(y, acc, M_index_tile, N_index_tile, M, N, M);
+    // store_acc_to_gds_transposed_16x16_packed4u32<BLOCKS_X, BLOCKS_Y>(y, acc, M_index_tile, N_index_tile, M, N, M);
 }
 
 template <typename FuncT>
