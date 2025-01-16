@@ -32,6 +32,7 @@ at::Tensor [[[TEMPLATE_FUNC_NAME1]]](
     // Invoke f8f8bf16 rowwise without preallocated output.
     return custom_fp8_32x32x16::f8f8bf16_rowwise_wrapper(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_32x32x16::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 16x");
             LAUNCH_KERNEL_OUTTYPE_32x32x16(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
@@ -113,6 +114,17 @@ at::Tensor [[[TEMPLATE_FUNC_NAME2]]](
 
 """
 
+TEMPLATE_PYTHON_BINDINGS = """
+import torch
+
+from vllm import _custom_ops as ops
+import vllm._fp8gemm_C  # noqa: F401
+
+FP8_GEMM_KERNELS =[
+[[[TEMPLATE_FUNC_NAMES]]]
+]
+"""
+
 @dataclass
 class Config:
     BLOCKS_X: int
@@ -157,11 +169,13 @@ if __name__ == "__main__":
 
     configs: List[Config] = []
 
-    for mblocks_x in [1, 2, 4, 8, 16, 32]:
-        for mblocks_y in [1, 2, 4, 8, 16, 32]:
-            for blocks_x in [1, 2, 4]:
-                for blocks_y in [1, 2, 4]:
-                    for blocks_z in [1, 2]:
+    for mblocks_x in [1, 2, 4, 8, 16]:
+        for mblocks_y in [1, 2, 4, 8, 16]:
+            for blocks_x in [1, 2, 4, 8, 16, 32]:
+                for blocks_y in [1, 2, 4, 8, 16, 32]:
+                    for blocks_z in [1, 2, 4, 8, 16, 32, 64]:
+                        if mblocks_x * mblocks_y > 16:
+                            continue
                         if mblocks_x * mblocks_y * blocks_x * blocks_y * blocks_z > 64:
                             continue
                         config = Config(
@@ -172,9 +186,19 @@ if __name__ == "__main__":
                             MBLOCKS_Y=mblocks_y
                         )
                         if config.generate_suffix() in [
-                            "14218", "41281",
-                            "112132", "211321", "112321", "121132",
-                            "122116", "212161", "411161", "141116",
+                            "111614", "11881", "111641", "11818",
+                            "114116", "114161", "113212", "122116",
+                            "113221", "121612", "116114", "116212",
+                            "116411",
+                            "12418", "14218", "12814", "141116",
+                            "14414", "14812", "123211", "18118",
+                            "18214", "141611", "18412", "161141",
+                            "18811", "161221", "161411", "132112",
+                            "132211", "161411", "132112", "132211",
+                            "212161", "21481", "21841", "211621",
+                            "213211", "411161", "41441", "41821",
+                            "41281", "411611", "321121", "321211",
+                            "81181", "81241", "81421", "81811",
                         ]:
                             continue
                         configs.append(config)
@@ -184,6 +208,7 @@ if __name__ == "__main__":
 
     binding_manifest = ""
     header_manifest = ""
+    python_manifest = ""
 
     funcs_packed = []
     print("Configuration interfaces:")
@@ -198,6 +223,10 @@ if __name__ == "__main__":
         header_manifest += TEMPLATE_HEADER_MANIFEST.replace(
                     "[[[TEMPLATE_FUNC_NAME1]]]", func1).replace(
                     "[[[TEMPLATE_FUNC_NAME2]]]", func2)
+        python_manifest += "    torch.ops._fp8gemm_C.{},\n    torch.ops._fp8gemm_C.{},\n".format(
+            func1, func2
+        )
+        
     if args.print_functions:
         exit()
     
@@ -230,8 +259,13 @@ if __name__ == "__main__":
     with open(header_file, "w") as f:
         f.write(header_text)
 
+    python_file = os.path.join(TARGET_DIR, "fp8_scaled_mm_rocm_kernels.py")
+    python_text = TEMPLATE_PYTHON_BINDINGS.replace("[[[TEMPLATE_FUNC_NAMES]]]", python_manifest)
+    with open(python_file, "w") as f:
+        f.write(python_text)
+
     print("-----------------------------------------------------")
-    print("Kernel definitions written to {} and {}".format(binding_file, header_file))
+    print("Kernel definitions written to {}, {} and {}".format(binding_file, header_file, python_file))
 
     
 

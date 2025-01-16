@@ -24,6 +24,7 @@ at::Tensor f8f8bf16_rowwise_instr1(
     // Invoke f8f8bf16 rowwise without preallocated output.
     return custom_fp8_32x32x16::f8f8bf16_rowwise_wrapper(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_32x32x16::BLOCK_K * DEFAULT_BLOCKS_Z) == 0, "K must be divisible by 16x");
             LAUNCH_KERNEL_OUTTYPE_32x32x16(_out_dtype, DEFAULT_BLOCKS_X, DEFAULT_BLOCKS_Y, DEFAULT_BLOCKS_Z, DEFAULT_MBLOCKS_X, DEFAULT_MBLOCKS_Y, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
@@ -53,6 +54,7 @@ at::Tensor f8f8bf16_rowwise_instr2(
 #define DISPATCH_32x32x16_WITH_SHAPE(BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y) \
     return custom_fp8_32x32x16::f8f8bf16_rowwise_wrapper( \
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void { \
+            TORCH_CHECK(K % (custom_fp8_32x32x16::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 16x"); \
             LAUNCH_KERNEL_OUTTYPE_32x32x16(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
         }, \
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype \
@@ -61,7 +63,7 @@ at::Tensor f8f8bf16_rowwise_instr2(
 #define DISPATCH_16x16x32_WITH_SHAPE(BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y) \
     return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper( \
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void { \
-            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * DEFAULT_BLOCKS_Z) == 0, "K must be divisible by 32x"); \
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x"); \
             LAUNCH_KERNEL_OUTTYPE_16x16x32(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K) \
         }, \
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype \

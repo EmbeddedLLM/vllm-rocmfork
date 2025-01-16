@@ -21,6 +21,7 @@ at::Tensor f8f8bf16_rowwise_32x32x16_11221(
     // Invoke f8f8bf16 rowwise without preallocated output.
     return custom_fp8_32x32x16::f8f8bf16_rowwise_wrapper(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_32x32x16::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 16x");
             LAUNCH_KERNEL_OUTTYPE_32x32x16(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype

@@ -341,8 +341,8 @@ __global__ void f8f8f16_rowwise_kernel(
     constexpr uint32_t B_warp_block_size_u32 = B_block_size_u32 * BLOCKS_Y * BLOCKS_Z;
     constexpr uint32_t B_tile_block_size_u32 = B_warp_block_size_u32 * MBLOCKS_Y;
 
-    __shared__ uint32_t A_shared[A_tile_block_size_u32 * 2];
-    __shared__ uint32_t B_shared[B_tile_block_size_u32 * 2]; // transposed
+    __shared__ __attribute__((aligned(512))) uint32_t A_shared[A_tile_block_size_u32 * 2];
+    __shared__ __attribute__((aligned(512))) uint32_t B_shared[B_tile_block_size_u32 * 2]; // transposed
 
     constexpr uint32_t A_row_stride = BLOCK_K / (4 / sizeof(TF8)) * BLOCKS_Z;
     constexpr uint32_t B_row_stride = BLOCK_K / (4 / sizeof(TF8)) * BLOCKS_Z;
@@ -794,8 +794,8 @@ __global__ void f8f8f16_rowwise_kernel(
     constexpr uint32_t B_warp_block_size_u32 = B_block_size_u32 * BLOCKS_Y * BLOCKS_Z;
     constexpr uint32_t B_tile_block_size_u32 = B_warp_block_size_u32 * MBLOCKS_Y;
 
-    __shared__ uint32_t A_shared[A_tile_block_size_u32 * 2];
-    __shared__ uint32_t B_shared[B_tile_block_size_u32 * 2]; // transpoesd
+    __shared__ __attribute__((aligned(512))) uint32_t A_shared[A_tile_block_size_u32 * 2];
+    __shared__ __attribute__((aligned(512))) uint32_t B_shared[B_tile_block_size_u32 * 2]; // transpoesd
 
     constexpr uint32_t A_row_stride = BLOCK_K / (4 / sizeof(TF8)) * BLOCKS_Z;
     constexpr uint32_t B_row_stride = BLOCK_K / (4 / sizeof(TF8)) * BLOCKS_Z;
