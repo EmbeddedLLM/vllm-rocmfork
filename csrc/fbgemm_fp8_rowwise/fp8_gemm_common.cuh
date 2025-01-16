@@ -108,18 +108,14 @@ __device__ inline void load_scale_gds_to_lds_vanilla(
 
     const uint32_t thread_id_flattened = threadIdx.x + LAUNCH_WARP_SIZE * (threadIdx.y + MBLOCKS_X * threadIdx.z);
 
-    // __syncthreads();
 #pragma unroll
     for (uint32_t iter = 0; iter < num_iters; ++iter) {
         const uint32_t item_id = thread_id_flattened + iter * available_workers;
         const uint32_t global_item_id = tb_head_index + item_id;
         if (item_id < num_elems && global_item_id < size) {
             lds[item_id] = static_cast<float>(gds[global_item_id]);
-        } else {
-            lds[item_id] = 0.0f;
         }
     }
-    // __syncthreads();
 }
 
 template <typename TY, int NUM_ITEMS>
