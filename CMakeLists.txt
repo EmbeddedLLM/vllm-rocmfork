@@ -597,6 +597,29 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
     WITH_SOABI
     # LIBRARIES "composable_kernel"
     )
+
+#
+# _machete_rocm_C extensions
+#
+set(VLLM_MACHETE_ROCM_EXT_SRC
+  "csrc/quantization/machete_rocm/torch_bindings.cpp"
+  "csrc/quantization/machete_rocm/preshuffle.cu"
+  "csrc/quantization/machete_rocm/utils.cpp"
+)
+find_package(composable_kernel REQUIRED)
+
+set(fp8_supported_archs "gfx940" "gfx941" "gfx942")
+define_gpu_extension_target(
+  _machete_rocm_C
+  DESTINATION vllm
+  LANGUAGE ${VLLM_GPU_LANG}
+  SOURCES ${VLLM_MACHETE_ROCM_EXT_SRC}
+  COMPILE_FLAGS ${VLLM_GPU_FLAGS}
+  ARCHITECTURES ${fp8_supported_archs}
+  USE_SABI 3
+  WITH_SOABI
+)
+
 endif()
 
 # vllm-flash-attn currently only supported on CUDA

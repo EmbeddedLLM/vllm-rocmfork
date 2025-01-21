@@ -505,6 +505,7 @@ if _is_hip():
     ext_modules.append(CMakeExtension(name="vllm._rocm_C"))
     ext_modules.append(CMakeExtension(name="vllm._gradlib_C"))
     ext_modules.append(CMakeExtension(name="vllm._fp8gemm_C"))
+    ext_modules.append(CMakeExtension(name="vllm._machete_rocm_C"))
 
 if _is_cuda():
     ext_modules.append(
