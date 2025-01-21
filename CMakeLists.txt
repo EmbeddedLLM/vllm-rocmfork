@@ -567,6 +567,37 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
     ARCHITECTURES ${VLLM_GPU_ARCHES}
     USE_SABI 3
     WITH_SOABI)
+
+    
+  #
+  # _machete_rocm_C extension
+  #
+  set(VLLM_MACHETE_ROCM_EXT_SRC
+    "csrc/quantization/machete_rocm/torch_bindings.cpp"
+    "csrc/quantization/machete_rocm/machete_prepack.cpp"
+  )
+
+  message(${VLLM_MACHETE_ROCM_EXT_SRC})
+
+  # file(GLOB VLLM_MACHETE_ROCM_EXT_SRC_BM "csrc/quantization/machete_rocm/generated/*.cu")
+  # foreach(GFILE ${VLLM_MACHETE_ROCM_EXT_SRC_BM})
+  #   file(RELATIVE_PATH RFILE "${CMAKE_SOURCE_DIR}" "${GFILE}")
+  #   list(APPEND VLLM_MACHETE_ROCM_EXT_SRC ${RFILE})
+  # endforeach()
+
+  find_package(composable_kernel REQUIRED)
+
+  set(fp8_supported_archs "gfx940" "gfx941" "gfx942")
+  define_gpu_extension_target(
+    _machete_rocm_C
+    DESTINATION vllm
+    LANGUAGE ${VLLM_GPU_LANG}                               
+    SOURCES ${VLLM_MACHETE_ROCM_EXT_SRC}
+    COMPILE_FLAGS ${VLLM_GPU_FLAGS}
+    ARCHITECTURES ${fp8_supported_archs}
+    USE_SABI 3
+    WITH_SOABI
+  )
 endif()
 
 # vllm-flash-attn currently only supported on CUDA

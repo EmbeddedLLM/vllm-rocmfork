@@ -1,0 +1,24 @@
+#include "../machete_mm_kernel.h"
+
+at::Tensor machete_mm_rocm(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    int op_id,
+    int kbatch) {
+    try {
+        {% for op in operations %}
+        if (op_id == {{ op.id }}) {
+            return machete_mm_rocm_{{ op.id }}(XQ, WQ, x_scale, w_scale, Y, kbatch);
+        }
+        {% endfor %}
+        else {
+            throw std::runtime_error("Unsupported (M, N, K) combination");
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        throw;
+    }
+    
+}
