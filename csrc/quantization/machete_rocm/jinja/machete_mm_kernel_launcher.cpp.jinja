@@ -1,0 +1,38 @@
+#include "machete_mm_kernel_launcher.hpp"
+#include "../machete_ck.hpp"
+
+at::Tensor scaled_mm{{ op.id }}(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    int KBatch = 1) {
+    
+    int M = XQ.size(0);
+    int N = WQ.size(0);
+
+    auto device = XQ.device();
+    // Allocate output
+    torch::Tensor Y = torch::empty(
+        {M, N},
+        torch::TensorOptions()
+            .dtype(equivalent_scalar_type_v<typename MacheteKernel::ElementD>)
+            .device(device));
+
+    return f8f8bf16_pshuffleb_rowwise_impl<
+        DeviceGemmHelper<{{ op.block_size }}, 
+        {{ op.M }},   {{ op.N }},    {{ op.K }},
+        {{ op.MXdl }},   {{ op.NXdl }},    
+        {{ op.MPerXdl }},    {{ op.NPerXdl }},
+        S<{{ op.ABlockTransferThreadClusterLengths }}>, 
+        S<{{ op.BBlockTransferThreadClusterLengths }}>, 
+        S<{{ op.CBlockTransferClusterLengths }}>,     
+        S<{{ op.CBlockTransferScalarPerVector }}>,
+        {{ op.CShuffle_MX_Per_Wave_Pershuffle }},
+        {{ op.CShuffle_NX_Per_Wave_Pershuffle }},
+        {{ op.BlockGemmPipelineScheduler }}, 
+        {{ op.BlockGemmPipelineVersion }}, 
+        {{ op.GemmSpecialization }},
+        {{ op.ABlockTransferSrcScalarPerVector }}, 
+        {{ op.BBlockTransferSrcScalarPerVector }}>>(XQ, WQ, x_scale, w_scale, Y, KBatch);
+}

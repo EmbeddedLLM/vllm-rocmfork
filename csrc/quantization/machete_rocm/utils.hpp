@@ -6,4 +6,3 @@ namespace machete_rocm{
         at::Tensor align_to_wavefront(const at::Tensor tensor);
     }
 }
-

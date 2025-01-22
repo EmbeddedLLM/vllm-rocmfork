@@ -1,0 +1,12 @@
+#pragma once
+#include <torch/torch.h>
+
+// Declare the function that will be defined in separate source files
+{% for op in operations %}
+at::Tensor scaled_mm{{ op.id }}(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    int KBatch = 1);
+{% endfor %}

@@ -2,6 +2,14 @@
 #include <torch/torch.h>
 
 
+at::Tensor scaled_mm(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    int64_t op_id,
+    int64_t kbatch
+);
 namespace machete_rocm{
 
     at::Tensor preshuffle(

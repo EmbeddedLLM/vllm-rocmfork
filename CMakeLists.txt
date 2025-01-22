@@ -602,10 +602,15 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
 # _machete_rocm_C extensions
 #
 set(VLLM_MACHETE_ROCM_EXT_SRC
-  "csrc/quantization/machete_rocm/torch_bindings.cpp"
-  "csrc/quantization/machete_rocm/preshuffle.cu"
   "csrc/quantization/machete_rocm/utils.cpp"
+  "csrc/quantization/machete_rocm/preshuffle.cu"
+  "csrc/quantization/machete_rocm/torch_bindings.cpp"
+  "csrc/quantization/machete_rocm/generated/machete_mm_kernel.cpp"
+  "csrc/quantization/machete_rocm/generated/machete_mm_kernel_launcher_1.cpp"
+  "csrc/quantization/machete_rocm/generated/machete_mm_kernel_launcher_2.cpp"
+
 )
+
 find_package(composable_kernel REQUIRED)
 
 set(fp8_supported_archs "gfx940" "gfx941" "gfx942")

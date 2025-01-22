@@ -22,4 +22,3 @@ at::Tensor machete_rocm::utils::align_to_wavefront(
     torch::nn::functional::PadFuncOptions(padding).mode(torch::kConstant);
     return torch::nn::functional::pad(tensor, padding_options);
 }
-

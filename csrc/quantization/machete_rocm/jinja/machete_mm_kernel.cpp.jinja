@@ -1,0 +1,25 @@
+#include "../ops.cuh"
+#include "machete_mm_kernel_launcher.hpp"
+
+at::Tensor scaled_mm(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    int64_t op_id,
+    int64_t kbatch) {
+    try {
+        {% for op in operations %}
+        if (op_id == {{ op.id }}) {
+            return scaled_mm{{ op.id }}(XQ, WQ, x_scale, w_scale, Y, kbatch);
+        }
+        {% endfor %}
+        else {
+            throw std::runtime_error("Unsupported (M, N, K) combination");
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        throw;
+    }
+    
+}
