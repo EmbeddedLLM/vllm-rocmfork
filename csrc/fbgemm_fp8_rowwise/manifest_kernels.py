@@ -4,6 +4,8 @@ import argparse
 from typing import List
 import glob
 
+SPLIT_K_CHUNKS = [128, 256, 512, 1024, 2048]
+
 TARGET_DIR = "kernel/"
 
 TEMPLATE_FUNC_NAME1 = "f8f8bf16_rowwise_32x32x16_[[[__CONFIGS_DIM__]]]"
@@ -12,6 +14,7 @@ TEMPLATE_FUNC_NAME2 = "f8f8bf16_rowwise_16x16x32_[[[__CONFIGS_DIM__]]]"
 TEMPLATE_KERNEL = """
 #include <cuda_runtime.h>
 #include "../fp8_gemm_common_hip.cuh"
+#include "../fp8_gemm_common_splitk_hip.cuh"
 
 constexpr uint32_t BLOCKS_X = [[[BLOCKS_X]]];
 constexpr uint32_t BLOCKS_Y = [[[BLOCKS_Y]]];
@@ -58,6 +61,111 @@ at::Tensor [[[TEMPLATE_FUNC_NAME2]]](
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
     );
 }
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk128(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
+    std::optional<at::ScalarType> out_dtype
+) {
+    const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
+    // Invoke f8f8bf16 rowwise without preallocated output.
+    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+        [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 128, "K chunk size is too small to split workload along K");
+            LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 128, M, N, K)
+        },
+        XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
+    );
+}
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk256(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
+    std::optional<at::ScalarType> out_dtype
+) {
+    const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
+    // Invoke f8f8bf16 rowwise without preallocated output.
+    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+        [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 256, "K chunk size is too small to split workload along K");
+            LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 256, M, N, K)
+        },
+        XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
+    );
+}
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk512(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
+    std::optional<at::ScalarType> out_dtype
+) {
+    const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
+    // Invoke f8f8bf16 rowwise without preallocated output.
+    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+        [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 512, "K chunk size is too small to split workload along K");
+            LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 512, M, N, K)
+        },
+        XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
+    );
+}
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk1024(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
+    std::optional<at::ScalarType> out_dtype
+) {
+    const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
+    // Invoke f8f8bf16 rowwise without preallocated output.
+    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+        [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 1024, "K chunk size is too small to split workload along K");
+            LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 1024, M, N, K)
+        },
+        XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
+    );
+}
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk2048(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias, // Not implemented
+    bool use_fast_accum, // Not implemented
+    std::optional<at::ScalarType> out_dtype
+) {
+    const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
+    // Invoke f8f8bf16 rowwise without preallocated output.
+    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+        [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
+            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 2048, "K chunk size is too small to split workload along K");
+            LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 2048, M, N, K)
+        },
+        XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
+    );
+}
 """
 
 # TEMPLATE_BINDING = """
@@ -83,6 +191,16 @@ TEMPLATE_BINDING_MANIFEST = """
     fp8gemm_ops.impl("[[[TEMPLATE_FUNC_NAME1]]]", torch::kCUDA, &[[[TEMPLATE_FUNC_NAME1]]]); \\
     fp8gemm_ops.def("[[[TEMPLATE_FUNC_NAME2]]](Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &[[[TEMPLATE_FUNC_NAME2]]]); \\
     fp8gemm_ops.impl("[[[TEMPLATE_FUNC_NAME2]]]", torch::kCUDA, &[[[TEMPLATE_FUNC_NAME2]]]); \\
+    fp8gemm_ops.def("[[[TEMPLATE_FUNC_NAME2]]]_sk128(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &[[[TEMPLATE_FUNC_NAME2]]]_sk128); \\
+    fp8gemm_ops.impl("[[[TEMPLATE_FUNC_NAME2]]]_sk128", torch::kCUDA, &[[[TEMPLATE_FUNC_NAME2]]]_sk128); \\
+    fp8gemm_ops.def("[[[TEMPLATE_FUNC_NAME2]]]_sk256(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &[[[TEMPLATE_FUNC_NAME2]]]_sk256); \\
+    fp8gemm_ops.impl("[[[TEMPLATE_FUNC_NAME2]]]_sk256", torch::kCUDA, &[[[TEMPLATE_FUNC_NAME2]]]_sk256); \\
+    fp8gemm_ops.def("[[[TEMPLATE_FUNC_NAME2]]]_sk512(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &[[[TEMPLATE_FUNC_NAME2]]]_sk512); \\
+    fp8gemm_ops.impl("[[[TEMPLATE_FUNC_NAME2]]]_sk512", torch::kCUDA, &[[[TEMPLATE_FUNC_NAME2]]]_sk512); \\
+    fp8gemm_ops.def("[[[TEMPLATE_FUNC_NAME2]]]_sk1024(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &[[[TEMPLATE_FUNC_NAME2]]]_sk1024); \\
+    fp8gemm_ops.impl("[[[TEMPLATE_FUNC_NAME2]]]_sk1024", torch::kCUDA, &[[[TEMPLATE_FUNC_NAME2]]]_sk1024); \\
+    fp8gemm_ops.def("[[[TEMPLATE_FUNC_NAME2]]]_sk2048(Tensor XQ, Tensor WQ, Tensor x_scale, Tensor w_scale, Tensor? bias, bool use_, ScalarType? out_dtype) -> (Tensor)", &[[[TEMPLATE_FUNC_NAME2]]]_sk2048); \\
+    fp8gemm_ops.impl("[[[TEMPLATE_FUNC_NAME2]]]_sk2048", torch::kCUDA, &[[[TEMPLATE_FUNC_NAME2]]]_sk2048); \\
 """
 
 TEMPLATE_HEADER = """
@@ -104,6 +222,51 @@ at::Tensor [[[TEMPLATE_FUNC_NAME1]]](
     std::optional<at::ScalarType> out_dtype);
 
 at::Tensor [[[TEMPLATE_FUNC_NAME2]]](
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk128(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk256(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk512(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk1024(
+    at::Tensor XQ,
+    at::Tensor WQ,
+    at::Tensor x_scale,
+    at::Tensor w_scale,
+    std::optional<at::Tensor> bias,
+    bool use_fast_accum,
+    std::optional<at::ScalarType> out_dtype);
+
+at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk2048(
     at::Tensor XQ,
     at::Tensor WQ,
     at::Tensor x_scale,
@@ -163,8 +326,9 @@ class Config:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--show-manifests", action="store_true", help="Show only the manifests without modifying anything")
+    parser.add_argument("-m", "--show-manifests", action="store_true", help="Show only the manifests without modifying anything")
     parser.add_argument("-f", "--print-functions", action="store_true", help="Show only the functions and then exit")
+    parser.add_argument("-s", "--silence", action="store_true", help="Don't print too much")
     args = parser.parse_args()
 
     configs: List[Config] = []
@@ -209,6 +373,7 @@ if __name__ == "__main__":
     binding_manifest = ""
     header_manifest = ""
     python_manifest = ""
+    python_manifest_sk = ""
 
     funcs_packed = []
     print("Configuration interfaces:")
@@ -216,6 +381,9 @@ if __name__ == "__main__":
         func1, func2 = config.generate_func_names()
         print(func1)
         print(func2)
+        func2_sks = ["{}_sk{}".format(func2, sk) for sk in SPLIT_K_CHUNKS]
+        for func2_sk in func2_sks:
+            print(func2_sk)
         funcs_packed.append((func1, func2))
         binding_manifest += TEMPLATE_BINDING_MANIFEST.replace(
                     "[[[TEMPLATE_FUNC_NAME1]]]", func1).replace(
@@ -226,17 +394,20 @@ if __name__ == "__main__":
         python_manifest += "    torch.ops._fp8gemm_C.{},\n    torch.ops._fp8gemm_C.{},\n".format(
             func1, func2
         )
+        for func2_sk in func2_sks:
+            python_manifest_sk += "    torch.ops._fp8gemm_C.{},\n".format(func2_sk)
         
     if args.print_functions:
         exit()
     
-    print("-------------------------------------------------------")
-    print("Binding manifest:")
-    print(binding_manifest)
+    if not args.silence:
+        print("-------------------------------------------------------")
+        print("Binding manifest:")
+        print(binding_manifest)
 
-    print("-------------------------------------------------------")
-    print("Kernel files:")
-    print("\n".join(a.get_filename() for a in configs))
+        print("-------------------------------------------------------")
+        print("Kernel files:")
+        print("\n".join(a.get_filename() for a in configs))
 
 
     if args.show_manifests:
@@ -264,8 +435,13 @@ if __name__ == "__main__":
     with open(python_file, "w") as f:
         f.write(python_text)
 
+    python_file_sk = os.path.join(TARGET_DIR, "fp8_scaled_mm_rocm_kernels_sk.py")
+    python_text_sk = TEMPLATE_PYTHON_BINDINGS.replace("[[[TEMPLATE_FUNC_NAMES]]]", python_manifest_sk)
+    with open(python_file_sk, "w") as f:
+        f.write(python_text_sk)
+
     print("-----------------------------------------------------")
-    print("Kernel definitions written to {}, {} and {}".format(binding_file, header_file, python_file))
+    print("Kernel definitions written to {}, {}, {} and {}".format(binding_file, header_file, python_file, python_file_sk))
 
     
 
