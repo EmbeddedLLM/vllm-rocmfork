@@ -65,9 +65,9 @@ at::Tensor f8f8bf16_rowwise_instr2_sk(
 ) {
     const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
     // Invoke f8f8bf16 rowwise without preallocated output.
-    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+    return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper_sk(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
-            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * DEFAULT_BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * DEFAULT_BLOCKS_Z) == 0, "K must be divisible by 32x");
             LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, DEFAULT_BLOCKS_X, DEFAULT_BLOCKS_Y, DEFAULT_BLOCKS_Z, DEFAULT_MBLOCKS_X, DEFAULT_MBLOCKS_Y, DEFAULT_CHUNK_K, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype

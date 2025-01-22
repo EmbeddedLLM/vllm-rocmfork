@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import os
 import argparse
 from typing import List
-import glob
+import shutil
 
 SPLIT_K_CHUNKS = [128, 256, 512, 1024, 2048]
 
@@ -73,10 +73,10 @@ at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk128(
 ) {
     const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
     // Invoke f8f8bf16 rowwise without preallocated output.
-    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+    return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper_sk(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
-            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
-            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 128, "K chunk size is too small to split workload along K");
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z <= 128, "K chunk size is too small to split workload along K");
             LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 128, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
@@ -94,10 +94,10 @@ at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk256(
 ) {
     const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
     // Invoke f8f8bf16 rowwise without preallocated output.
-    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+    return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper_sk(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
-            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
-            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 256, "K chunk size is too small to split workload along K");
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z <= 256, "K chunk size is too small to split workload along K");
             LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 256, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
@@ -115,10 +115,10 @@ at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk512(
 ) {
     const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
     // Invoke f8f8bf16 rowwise without preallocated output.
-    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+    return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper_sk(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
-            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
-            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 512, "K chunk size is too small to split workload along K");
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z <= 512, "K chunk size is too small to split workload along K");
             LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 512, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
@@ -136,10 +136,10 @@ at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk1024(
 ) {
     const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
     // Invoke f8f8bf16 rowwise without preallocated output.
-    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+    return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper_sk(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
-            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
-            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 1024, "K chunk size is too small to split workload along K");
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z <= 1024, "K chunk size is too small to split workload along K");
             LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 1024, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
@@ -157,10 +157,10 @@ at::Tensor [[[TEMPLATE_FUNC_NAME2]]]_sk2048(
 ) {
     const at::ScalarType _out_dtype = (out_dtype.has_value()) ? out_dtype.value() : at::kBFloat16;
     // Invoke f8f8bf16 rowwise without preallocated output.
-    return custom_fp8_16x16x32_splitK::f8f8bf16_rowwise_wrapper(
+    return custom_fp8_16x16x32::f8f8bf16_rowwise_wrapper_sk(
         [_out_dtype](at::Tensor XQ, at::Tensor WQ, at::Tensor x_scale, at::Tensor w_scale, at::Tensor Y, int M, int N, int K) -> void {
-            TORCH_CHECK(K % (custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
-            TORCH_CHECK(custom_fp8_16x16x32_splitK::BLOCK_K * BLOCKS_Z <= 2048, "K chunk size is too small to split workload along K");
+            TORCH_CHECK(K % (custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z) == 0, "K must be divisible by 32x");
+            TORCH_CHECK(custom_fp8_16x16x32::BLOCK_K * BLOCKS_Z <= 2048, "K chunk size is too small to split workload along K");
             LAUNCH_KERNEL_OUTTYPE_16x16x32_SK(_out_dtype, BLOCKS_X, BLOCKS_Y, BLOCKS_Z, MBLOCKS_X, MBLOCKS_Y, 2048, M, N, K)
         },
         XQ, WQ, x_scale, w_scale, use_fast_accum, _out_dtype
@@ -337,7 +337,7 @@ if __name__ == "__main__":
         for mblocks_y in [1, 2, 4, 8, 16]:
             for blocks_x in [1, 2, 4, 8, 16, 32]:
                 for blocks_y in [1, 2, 4, 8, 16, 32]:
-                    for blocks_z in [1, 2, 4, 8, 16, 32, 64]:
+                    for blocks_z in [1, 2]:
                         if mblocks_x * mblocks_y > 16:
                             continue
                         if mblocks_x * mblocks_y * blocks_x * blocks_y * blocks_z > 64:
@@ -415,7 +415,10 @@ if __name__ == "__main__":
 
     for file in os.listdir(TARGET_DIR):
         file_path = os.path.join(TARGET_DIR, file)
-        os.remove(file_path)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
 
     for config in configs:
         config.generate_kernel_file(TARGET_DIR, TEMPLATE_FUNC_NAME1, TEMPLATE_FUNC_NAME2, TEMPLATE_KERNEL)
