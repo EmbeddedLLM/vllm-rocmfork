@@ -64,7 +64,9 @@ def main(args: argparse.Namespace):
                     ],
                     on_trace_ready=torch.profiler.tensorboard_trace_handler(
                         str(profile_dir))) as p:
-                llm_generate()
+                llm.generate(dummy_prompts,
+                             sampling_params=sampling_params,
+                             use_tqdm=False)
             print(p.key_averages().table(sort_by="self_cuda_time_total"))
         else:
             start_time = time.perf_counter()

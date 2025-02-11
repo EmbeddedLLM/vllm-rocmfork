@@ -201,6 +201,8 @@ def get_configs_compute_bound(use_fp16) -> List[Dict[str, int]]:
     keys, values = zip(*param_ranges.items())
     for config_values in product(*values):
         config = dict(zip(keys, config_values))
+        assert config['num_warps'] == config['BLOCK_SIZE_N'] // 16, \
+            "num_warps should be equal to BLOCK_SIZE_N divided by 16"
         configs.append(config)
     return configs
 
