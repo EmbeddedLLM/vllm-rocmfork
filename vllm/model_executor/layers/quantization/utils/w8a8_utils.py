@@ -3,15 +3,25 @@ from typing import List, Optional, Tuple, Union
 import torch
 
 from vllm import _custom_ops as ops
-from vllm.envs import VLLM_USE_AITER_LINEAR
+from vllm.envs import VLLM_USE_AITER_A8W8_FP8, VLLM_USE_AITER_LINEAR
 from vllm.platforms import current_platform
 
 if VLLM_USE_AITER_LINEAR:
     from aiter.tuned_gemm import tgemm
 
+if VLLM_USE_AITER_A8W8_FP8:
+    from aiter.ops.gemm_op_a8w8 import gemm_a8w8_CK
+
 # Input scaling factors are no longer optional in _scaled_mm starting
 # from pytorch 2.5. Allocating a dummy tensor to pass as input_scale
 TORCH_DEVICE_IDENTITY = torch.ones(1, dtype=torch.float32)
+
+# The condition to determine if it is on a platform that supports
+# torch._scaled_mm rowwise feature.
+# The condition is determined once as the operations
+# are time consuming.
+USE_ROWWISE_TORCH_SCALED_MM = (current_platform.is_rocm()
+                               and current_platform.has_device_capability(94))
 
 
 def sparse_cutlass_supported() -> bool:
@@ -174,6 +184,37 @@ def apply_fp8_linear(
 
             return torch.narrow(output, 0, 0,
                                 input_2d.shape[0]).view(*output_shape)
+
+        elif (use_per_token_if_dynamic and not per_tensor_weights
+              and not per_tensor_activations and USE_ROWWISE_TORCH_SCALED_MM):
+
+            if VLLM_USE_AITER_A8W8_FP8:
+                output = gemm_a8w8_CK(
+                    qinput,  # [M, K]
+                    weight.t(),  # [N, K]
+                    x_scale,
+                    weight_scale,
+                    bias,
+                    dtype=out_dtype)
+
+            else:
+                # For now validated on ROCm platform
+                # fp8 rowwise scaling in torch._scaled_mm is introduced in
+                # https://github.com/pytorch/pytorch/pull/144432 using
+                # hipBLASLt
+                # For CUDA platform please validate if the
+                # torch._scaled_mm support rowwise scaled GEMM
+                # Fused GEMM_DQ Rowwise GEMM
+                output = torch._scaled_mm(qinput,
+                                          weight,
+                                          out_dtype=out_dtype,
+                                          scale_a=x_scale,
+                                          scale_b=weight_scale.t(),
+                                          bias=bias)
+
+            output = torch.narrow(output, 0, 0, input_2d.shape[0])
+            output = output.view(*output_shape)
+            return output
 
         else:
             # Fallback for channelwise case, where we use unfused DQ

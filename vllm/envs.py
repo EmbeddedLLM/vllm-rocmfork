@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     VLLM_USE_AITER_PAGED_ATTN: bool = False
     VLLM_USE_AITER_LINEAR: bool = False
     VLLM_USE_AITER_NORM: bool = False
+    VLLM_USE_AITER_A8W8_FP8: bool = False
     RANK: int = 0
     VLLM_FLASH_ATTN_VERSION: Optional[int] = None
     LOCAL_RANK: int = 0
@@ -312,6 +313,11 @@ environment_variables: Dict[str, Callable[[], Any]] = {
     lambda:
     (os.getenv("VLLM_USE_AITER", "False").lower() in
      ("true", "1") and os.getenv("VLLM_USE_AITER_NORM", "True").lower() in
+     ("true", "1")),
+    "VLLM_USE_AITER_A8W8_FP8":
+    lambda:
+    (os.getenv("VLLM_USE_AITER", "False").lower() in
+     ("true", "1") and os.getenv("VLLM_USE_AITER_A8W8_FP8", "True").lower() in
      ("true", "1")),
 
     # rank of the process in the distributed setting, used to determine
