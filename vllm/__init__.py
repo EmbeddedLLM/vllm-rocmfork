@@ -41,7 +41,6 @@ __all__ = [
     "__version__",
     "__version_tuple__",
     "LLM",
-    "FastSyncLLM",
     "ModelRegistry",
     "PromptType",
     "TextPrompt",

@@ -20,6 +20,12 @@ if TYPE_CHECKING:
     VLLM_USE_ROCM_CUSTOM_PAGED_ATTN: bool = True
     VLLM_USE_ROCM_CUSTOM_PAGED_ATTN_FP8_OUT: bool = True
     VLLM_USE_ROCM_FP8_FLASH_ATTN: bool = False
+    VLLM_USE_AITER: bool = False
+    VLLM_USE_AITER_MOE: bool = False
+    VLLM_USE_AITER_PAGED_ATTN: bool = False
+    VLLM_USE_AITER_LINEAR: bool = False
+    VLLM_USE_AITER_NORM: bool = False
+    RANK: int = 0
     VLLM_FLASH_ATTN_VERSION: Optional[int] = None
     LOCAL_RANK: int = 0
     CUDA_VISIBLE_DEVICES: Optional[str] = None
@@ -82,8 +88,13 @@ if TYPE_CHECKING:
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: list[str] = []
     VLLM_USE_V1: bool = False
-    VLLM_MOE_PADDING: bool = False
     VLLM_ROCM_FP8_PADDING: bool = True
+    VLLM_SYNC_SERVER_ACCUM_REQUESTS: int = 1
+    VLLM_SYNC_SERVER_ENGINE_STEPS_BETWEEN_POLLS: int = 1
+    VLLM_MOE_PADDING: bool = True
+    VLLM_MOE_SHUFFLE: bool = False
+    VLLM_FP8_PADDING: bool = True
+    FUSED_MOE_PERSISTENT: bool = False
     VLLM_ENABLE_V1_MULTIPROCESSING: bool = True
     VLLM_LOG_BATCHSIZE_INTERVAL: float = -1
     VLLM_DISABLE_COMPILE_CACHE: bool = False
@@ -292,6 +303,42 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VLLM_USE_ROCM_FP8_FLASH_ATTN":
     lambda: (os.getenv("VLLM_USE_ROCM_FP8_FLASH_ATTN", "False").lower() in
              ("true", "1")),
+
+    # use ater ops unless specifically disabled
+    "VLLM_USE_AITER":
+    lambda: (os.getenv("VLLM_USE_AITER", "False").lower() in ("true", "1")),
+
+    # use ater moe op if ater ops are enabled
+    "VLLM_USE_AITER_MOE":
+    lambda:
+    (os.getenv("VLLM_USE_AITER", "False").lower() in
+     ("true", "1") and os.getenv("VLLM_USE_AITER_MOE", "True").lower() in
+     ("true", "1")),
+
+    # use ater paged attn op if ater ops are enabled
+    "VLLM_USE_AITER_PAGED_ATTN":
+    lambda: (os.getenv("VLLM_USE_AITER", "False").lower() in
+             ("true", "1") and os.getenv("VLLM_USE_AITER_PAGED_ATTN", "False"
+                                         ).lower() in ("true", "1")),
+
+    # use ater linear op if ater ops are enabled
+    "VLLM_USE_AITER_LINEAR":
+    lambda:
+    (os.getenv("VLLM_USE_AITER", "False").lower() in
+     ("true", "1") and os.getenv("VLLM_USE_AITER_LINEAR", "True").lower() in
+     ("true", "1")),
+
+    # use ater rms norm op if ater ops are enabled
+    "VLLM_USE_AITER_NORM":
+    lambda:
+    (os.getenv("VLLM_USE_AITER", "False").lower() in
+     ("true", "1") and os.getenv("VLLM_USE_AITER_NORM", "True").lower() in
+     ("true", "1")),
+
+    # rank of the process in the distributed setting, used to determine
+    # the driver worker
+    "RANK":
+    lambda: int(os.environ.get("RANK", "0")),
 
     # local rank of the process in the distributed setting, used to determine
     # the GPU device id

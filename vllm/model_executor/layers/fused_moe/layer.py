@@ -14,6 +14,7 @@ from vllm.distributed import (get_dp_group, get_tensor_model_parallel_rank,
                               get_tensor_model_parallel_world_size,
                               tensor_model_parallel_all_reduce)
 from vllm.forward_context import ForwardContext, get_forward_context
+from vllm.envs import VLLM_USE_AITER_MOE
 from vllm.logger import init_logger
 from vllm.model_executor.custom_op import CustomOp
 from vllm.model_executor.layers.quantization.base_config import (
@@ -22,6 +23,10 @@ from vllm.model_executor.utils import set_weight_attrs
 from vllm.platforms import current_platform
 from vllm.platforms.interface import CpuArchEnum
 from vllm.utils import direct_register_custom_op
+
+if VLLM_USE_AITER_MOE:
+    from aiter import ck_moe
+    from aiter.ops.shuffle import shuffle_weight
 
 if current_platform.is_cuda_alike():
     from .fused_moe import fused_experts
@@ -99,6 +104,14 @@ class UnquantizedFusedMoEMethod(FusedMoEMethodBase, CustomOp):
 
     def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
         super().process_weights_after_loading(layer)
+
+        if envs.VLLM_USE_AITER_MOE:
+            layer.w13_weight = torch.nn.Parameter(shuffle_weight(
+                layer.w13_weight.data),
+                                                  requires_grad=False)
+            layer.w2_weight = torch.nn.Parameter(shuffle_weight(
+                layer.w2_weight.data),
+                                                 requires_grad=False)
 
         if envs.VLLM_MOE_PADDING:
             layer.w13_weight = torch.nn.Parameter(F.pad(
@@ -182,6 +195,13 @@ class UnquantizedFusedMoEMethod(FusedMoEMethodBase, CustomOp):
             custom_routing_function=custom_routing_function,
             scoring_func=scoring_func,
             e_score_correction_bias=e_score_correction_bias)
+
+        if VLLM_USE_AITER_MOE:
+            return ck_moe(hidden_states=x,
+                          w1=layer.w13_weight,
+                          w2=layer.w2_weight,
+                          topk_weights=topk_weights,
+                          topk_ids=topk_ids)
 
         return fused_experts(hidden_states=x,
                              w1=layer.w13_weight,
