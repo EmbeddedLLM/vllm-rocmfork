@@ -534,6 +534,21 @@ if(VLLM_GPU_LANG STREQUAL "HIP")
     ARCHITECTURES ${VLLM_GPU_ARCHES}
     USE_SABI 3
     WITH_SOABI)
+
+  set(VLLM_ROCM_FLASHINFER_EXT_SRC
+    "csrc/rocm/flashinfer/flashinfer_sampling_ops.cpp"
+    "csrc/rocm/flashinfer/renorm.cu"
+    "csrc/rocm/flashinfer/sampling.cu")
+
+  define_gpu_extension_target(
+    _rocm_flashinfer_C
+    DESTINATION vllm
+    LANGUAGE ${VLLM_GPU_LANG}
+    SOURCES ${VLLM_ROCM_FLASHINFER_EXT_SRC}
+    COMPILE_FLAGS ${VLLM_GPU_FLAGS}
+    ARCHITECTURES ${VLLM_GPU_ARCHES}
+    USE_SABI 3
+    WITH_SOABI)
 endif()
 
 # vllm-flash-attn currently only supported on CUDA
