@@ -21,14 +21,35 @@ from vllm.sequence import (VLLM_INVALID_TOKEN_ID,
                            CompletionSequenceGroupOutput, Logprob,
                            PromptLogprobs, SampleLogprobs, SequenceOutput)
 from vllm.spec_decode.metrics import SpecDecodeWorkerMetrics
+from vllm.platforms import current_platform
 
-if envs.VLLM_USE_FLASHINFER_SAMPLER and find_spec("flashinfer"):
-    import flashinfer.sampling
-    # yapf: disable
-    from flashinfer.sampling import (
-        top_k_top_p_sampling_from_probs as flashinfer_top_k_top_p_sampling)
+# if envs.VLLM_USE_FLASHINFER_SAMPLER and find_spec("flashinfer"):
+#     import flashinfer.sampling
+#     # yapf: disable
+#     from flashinfer.sampling import (
+#         top_k_top_p_sampling_from_probs as flashinfer_top_k_top_p_sampling)
 
-    # yapf: enable
+#     # yapf: enable
+# else:
+#     flashinfer_top_k_top_p_sampling = None
+    
+if envs.VLLM_USE_FLASHINFER_SAMPLER:
+    if current_platform.is_cuda():
+        if find_spec("flashinfer"):
+            import flashinfer.sampling
+            from flashinfer.sampling import top_k_top_p_sampling_from_probs as flashinfer_top_k_top_p_sampling
+            from flashinfer.sampling import top_k_renorm_prob as flashinfer_top_k_renorm_prob
+            from flashinfer.sampling import top_p_renorm_prob as flashinfer_top_p_renorm_prob
+            from flashinfer.sampling import sampling_from_probs as flashinfer_sampling_from_probs
+        else:
+            flashinfer_top_k_top_p_sampling = None
+    elif current_platform.is_rocm():
+        from vllm._custom_flashinfer_ops import top_k_top_p_sampling_from_probs as flashinfer_top_k_top_p_sampling
+        from vllm._custom_flashinfer_ops import top_k_renorm_prob as flashinfer_top_k_renorm_prob
+        from vllm._custom_flashinfer_ops import top_p_renorm_prob as flashinfer_top_p_renorm_prob
+        from vllm._custom_flashinfer_ops import sampling_from_probs as flashinfer_sampling_from_probs
+    else:
+        flashinfer_top_k_top_p_sampling = None
 else:
     flashinfer_top_k_top_p_sampling = None
 
@@ -636,9 +657,9 @@ def _top_k_top_p_multinomial_with_flashinfer(
     if not success.all():
         warnings.warn("FlashInfer rejection sampling failed, fallback.",
                       stacklevel=1)
-        probs = flashinfer.sampling.top_k_renorm_prob(probs, top_ks)
-        probs = flashinfer.sampling.top_p_renorm_prob(probs, top_ps)
-        batch_next_token_ids = flashinfer.sampling.sampling_from_probs(
+        probs = flashinfer_top_k_renorm_prob(probs, top_ks)
+        probs = flashinfer_top_p_renorm_prob(probs, top_ps)
+        batch_next_token_ids = flashinfer_sampling_from_probs(
             probs, uniform_samples[0])
     return batch_next_token_ids.view(-1, num_samples)
 

@@ -58,51 +58,51 @@ void chain_speculative_sampling(at::Tensor draft_probs, at::Tensor draft_token_i
                                 int64_t cuda_stream);
 
 TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, flashinfer_ops) {
-      flashinfer_ops.def("sampling_from_probs(Tensor probs, Tensor uniform_samples, Tensor samples, bool deterministic, int64_t cuda_stream) -> ()",
+      flashinfer_ops.def("sampling_from_probs(Tensor probs, Tensor uniform_samples, Tensor samples, bool deterministic, int cuda_stream) -> ()",
                          &sampling_from_probs);
       flashinfer_ops.impl("sampling_from_probs", torch::kCUDA, &sampling_from_probs);
       flashinfer_ops.def("top_k_sampling_from_probs(Tensor probs, Tensor uniform_samples, Tensor samples, "
                          "Tensor success, Tensor? maybe_top_k_arr, "
-                         "int64_t top_k_val, bool deterministic, int64_t cuda_stream) -> ()", 
+                         "int top_k_val, bool deterministic, int cuda_stream) -> ()", 
                          &top_k_sampling_from_probs);
       flashinfer_ops.impl("top_k_sampling_from_probs", torch::kCUDA, &top_k_sampling_from_probs);
       flashinfer_ops.def("top_p_sampling_from_probs(Tensor probs, Tensor uniform_samples, Tensor samples, "
                          "Tensor success, Tensor? maybe_top_p_arr, "
-                         "double top_p_val, bool deterministic, int64_t cuda_stream) -> ()", 
+                         "float top_p_val, bool deterministic, int cuda_stream) -> ()", 
                          &top_p_sampling_from_probs);
       flashinfer_ops.impl("top_p_sampling_from_probs", torch::kCUDA, &top_p_sampling_from_probs);
       flashinfer_ops.def("min_p_sampling_from_probs(Tensor probs, Tensor uniform_samples, Tensor samples, "
-                         "Tensor? maybe_min_p_arr, double min_p_val, "
-                         "bool deterministic, int64_t cuda_stream) -> ()", 
+                         "Tensor? maybe_min_p_arr, float min_p_val, "
+                         "bool deterministic, int cuda_stream) -> ()", 
                          &min_p_sampling_from_probs);
       flashinfer_ops.impl("min_p_sampling_from_probs", torch::kCUDA, &min_p_sampling_from_probs);
       flashinfer_ops.def("top_k_top_p_sampling_from_probs(Tensor probs, Tensor uniform_samples, "
                          "Tensor samples, Tensor success, "
-                         "Tensor? maybe_top_k_arr, double top_k_val, "
-                         "Tensor? maybe_top_p_arr, double top_p_val, "
-                         "bool deterministic, int64_t cuda_stream) -> ()",
+                         "Tensor? maybe_top_k_arr, float top_k_val, "
+                         "Tensor? maybe_top_p_arr, float top_p_val, "
+                         "bool deterministic, int cuda_stream) -> ()",
                          &top_k_top_p_sampling_from_probs);
       flashinfer_ops.impl("top_k_top_p_sampling_from_probs", torch::kCUDA, &top_k_top_p_sampling_from_probs);
       flashinfer_ops.def("top_k_renorm_probs(Tensor probs, Tensor renorm_probs, "
-                         "Tensor? maybe_top_k_arr, int64_t top_k_val, "
-                         "int64_t cuda_stream) -> ()", 
+                         "Tensor? maybe_top_k_arr, int top_k_val, "
+                         "int cuda_stream) -> ()", 
                          &top_k_renorm_probs);
       flashinfer_ops.impl("top_k_renorm_probs", torch::kCUDA, &top_k_renorm_probs);
       flashinfer_ops.def("top_p_renorm_probs(Tensor probs, Tensor renorm_probs, "
-                         "Tensor? maybe_top_p_arr, double top_p_val, "
-                         "int64_t cuda_stream) -> ()", 
+                         "Tensor? maybe_top_p_arr, float top_p_val, "
+                         "int cuda_stream) -> ()", 
                          &top_p_renorm_probs);
       flashinfer_ops.impl("top_p_renorm_probs", torch::kCUDA, &top_p_renorm_probs);
       flashinfer_ops.def("top_k_mask_logits(Tensor logits, Tensor mask_logits, "
-                         "Tensor? maybe_top_k_arr, int64_t top_k_val, "
-                         "int64_t cuda_stream) -> ()", 
+                         "Tensor? maybe_top_k_arr, int top_k_val, "
+                         "int cuda_stream) -> ()", 
                          &top_k_mask_logits);
       flashinfer_ops.impl("top_k_mask_logits", torch::kCUDA, &top_k_mask_logits);
       flashinfer_ops.def("chain_speculative_sampling(Tensor draft_probs, Tensor draft_token_ids, "
                          "Tensor uniform_samples, Tensor target_probs, "
                          "Tensor output_token_ids, Tensor output_accepted_token_num, "
                          "Tensor output_emitted_token_num, bool deterministic, "
-                         "int64_t cuda_stream)", 
+                         "int cuda_stream) -> ()", 
                          &chain_speculative_sampling);
       flashinfer_ops.impl("chain_speculative_sampling", torch::kCUDA, &chain_speculative_sampling);
             

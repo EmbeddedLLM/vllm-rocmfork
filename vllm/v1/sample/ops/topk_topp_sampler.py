@@ -16,13 +16,37 @@ try:
     is_flashinfer_available = True
 except ImportError:
     is_flashinfer_available = False
+    
+if current_platform.is_rocm():
+    is_flashinfer_available = True
+    
+if is_flashinfer_available:
+    if current_platform.is_cuda():
+        from flashinfer.sampling import top_k_top_p_sampling_from_probs as flashinfer_top_k_top_p_sampling_from_probs
+        from flashinfer.sampling import top_k_renorm_prob as flashinfer_top_k_renorm_prob
+        from flashinfer.sampling import top_p_renorm_prob as flashinfer_top_p_renorm_prob
+        from flashinfer.sampling import sampling_from_probs as flashinfer_sampling_from_probs
+        from flashinfer.sampling import top_p_sampling_from_probs as flashinfer_top_p_sampling_from_probs
+        from flashinfer.sampling import top_k_sampling_from_probs as flashinfer_top_k_sampling_from_probs
+    elif current_platform.is_rocm():
+        from vllm._custom_flashinfer_ops import top_k_top_p_sampling_from_probs as flashinfer_top_k_top_p_sampling_from_probs
+        from vllm._custom_flashinfer_ops import top_k_renorm_prob as flashinfer_top_k_renorm_prob
+        from vllm._custom_flashinfer_ops import top_p_renorm_prob as flashinfer_top_p_renorm_prob
+        from vllm._custom_flashinfer_ops import sampling_from_probs as flashinfer_sampling_from_probs
+        from vllm._custom_flashinfer_ops import top_p_sampling_from_probs as flashinfer_top_p_sampling_from_probs
+        from vllm._custom_flashinfer_ops import top_k_sampling_from_probs as flashinfer_top_k_sampling_from_probs
+    else:
+        logger.warning("FlashInfer is not available. Falling back to the PyTorch-"
+                       "native implementation of top-p & top-k sampling. For the "
+                       "best performance, please install FlashInfer.")
+        is_flashinfer_available = False
 
 
 class TopKTopPSampler(nn.Module):
 
     def __init__(self):
         super().__init__()
-        if current_platform.is_cuda:
+        if current_platform.is_cuda() or current_platform.is_rocm():
             if is_flashinfer_available:
                 if envs.VLLM_USE_FLASHINFER_SAMPLER is not False:
                     # NOTE(woosuk): The V0 sampler doesn't use FlashInfer for
@@ -34,7 +58,7 @@ class TopKTopPSampler(nn.Module):
                     # why we use the condition
                     # `envs.VLLM_USE_FLASHINFER_SAMPLER is not False` here.
                     logger.info("Using FlashInfer for top-p & top-k sampling.")
-                    self.forward = self.forward_cuda
+                    self.forward = self.forward_flashinfer
                 else:
                     logger.warning(
                         "FlashInfer is available, but it is not enabled. "
@@ -65,7 +89,7 @@ class TopKTopPSampler(nn.Module):
         probs = logits.softmax(dim=-1, dtype=torch.float32)
         return random_sample(probs, generators)
 
-    def forward_cuda(
+    def forward_flashinfer(
         self,
         logits: torch.Tensor,
         generators: Dict[int, torch.Generator],
@@ -180,24 +204,24 @@ def flashinfer_sample(
 
     if no_top_k:
         # Top-p only.
-        next_token_ids, success = flashinfer.sampling.top_p_sampling_from_probs(
+        next_token_ids, success = flashinfer_top_p_sampling_from_probs(
             probs, uniform_samples, p, deterministic=True)
     elif no_top_p:
         # Top-k only.
-        next_token_ids, success = flashinfer.sampling.top_k_sampling_from_probs(
+        next_token_ids, success = flashinfer_top_k_sampling_from_probs(
             probs, uniform_samples, k, deterministic=True)
     else:
         # Both top-k and top-p.
         next_token_ids, success = (
-            flashinfer.sampling.top_k_top_p_sampling_from_probs(
+            flashinfer_top_k_top_p_sampling_from_probs(
                 probs, uniform_samples, k, p, deterministic=True))
 
     # NOTE: CPU-GPU synchronization happens here.
     if not success.all():
         if not no_top_k:
-            probs = flashinfer.sampling.top_k_renorm_prob(probs, k)
+            probs = flashinfer_top_k_renorm_prob(probs, k)
         if not no_top_p:
-            probs = flashinfer.sampling.top_p_renorm_prob(probs, p)
-        next_token_ids = flashinfer.sampling.sampling_from_probs(
+            probs = flashinfer_top_p_renorm_prob(probs, p)
+        next_token_ids = flashinfer_sampling_from_probs(
             probs, uniform_samples[0], deterministic=True)
     return next_token_ids.view(-1)

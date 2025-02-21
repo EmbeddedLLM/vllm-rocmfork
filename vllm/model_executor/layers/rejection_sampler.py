@@ -24,7 +24,10 @@ if find_spec("flashinfer"):
     """
     from flashinfer.sampling import chain_speculative_sampling
 else:
-    chain_speculative_sampling = None
+    if current_platform.is_rocm():
+        from vllm._custom_flashinfer_ops import chain_speculative_sampling
+    else:
+        chain_speculative_sampling = None
 
 
 class RejectionSampler(SpecDecodeStochasticBaseSampler):
