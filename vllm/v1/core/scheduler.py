@@ -321,6 +321,14 @@ class Scheduler:
                 self.kv_cache_manager.get_num_common_prefix_blocks(
                     any_request, len(self.running)))
 
+        # Get the longest common prefix among all requests in the running queue.
+        # This can be potentially used for cascade attention.
+        if self.running:
+            any_request = self.running[0]
+            num_common_prefix_blocks = (
+                self.kv_cache_manager.get_num_common_prefix_blocks(
+                    any_request, len(self.running)))
+
         # Construct the scheduler output.
         new_reqs_data = [
             NewRequestData.from_request(req,

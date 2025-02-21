@@ -72,6 +72,9 @@ def run_test(
     if vllm_runner_kwargs:
         vllm_runner_kwargs_.update(vllm_runner_kwargs)
 
+    if vllm_runner_kwargs is None:
+        vllm_runner_kwargs = {}
+
     with vllm_runner(model,
                      max_model_len=max_model_len,
                      max_num_seqs=max_num_seqs,

@@ -20,6 +20,11 @@ if TYPE_CHECKING:
     VLLM_USE_ROCM_CUSTOM_PAGED_ATTN: bool = True
     VLLM_USE_ROCM_CUSTOM_PAGED_ATTN_FP8_OUT: bool = True
     VLLM_USE_ROCM_FP8_FLASH_ATTN: bool = False
+    VLLM_USE_AITER: bool = False
+    VLLM_USE_AITER_MOE: bool = False
+    VLLM_USE_AITER_PAGED_ATTN: bool = False
+    VLLM_USE_AITER_LINEAR: bool = False
+    VLLM_USE_AITER_NORM: bool = False
     RANK: int = 0
     VLLM_FLASH_ATTN_VERSION: Optional[int] = None
     LOCAL_RANK: int = 0
@@ -83,8 +88,12 @@ if TYPE_CHECKING:
     VLLM_SKIP_P2P_CHECK: bool = False
     VLLM_DISABLED_KERNELS: List[str] = []
     VLLM_USE_V1: bool = False
-    VLLM_MOE_PADDING: bool = False
+    VLLM_SYNC_SERVER_ACCUM_REQUESTS: int = 1
+    VLLM_SYNC_SERVER_ENGINE_STEPS_BETWEEN_POLLS: int = 1
+    VLLM_MOE_PADDING: bool = True
+    VLLM_MOE_SHUFFLE: bool = False
     VLLM_FP8_PADDING: bool = True
+    FUSED_MOE_PERSISTENT: bool = False
     VLLM_ENABLE_V1_MULTIPROCESSING: bool = True
     VLLM_LOG_BATCHSIZE_INTERVAL: float = -1
     VLLM_DISABLE_COMPILE_CACHE: bool = False
@@ -281,6 +290,37 @@ environment_variables: Dict[str, Callable[[], Any]] = {
     "VLLM_USE_ROCM_FP8_FLASH_ATTN":
     lambda: (os.getenv("VLLM_USE_ROCM_FP8_FLASH_ATTN", "False").lower() in
              ("true", "1")),
+
+    # use ater ops unless specifically disabled
+    "VLLM_USE_AITER":
+    lambda: (os.getenv("VLLM_USE_AITER", "False").lower() in ("true", "1")),
+
+    # use ater moe op if ater ops are enabled
+    "VLLM_USE_AITER_MOE":
+    lambda:
+    (os.getenv("VLLM_USE_AITER", "False").lower() in
+     ("true", "1") and os.getenv("VLLM_USE_AITER_MOE", "True").lower() in
+     ("true", "1")),
+
+    # use ater paged attn op if ater ops are enabled
+    "VLLM_USE_AITER_PAGED_ATTN":
+    lambda: (os.getenv("VLLM_USE_AITER", "False").lower() in
+             ("true", "1") and os.getenv("VLLM_USE_AITER_PAGED_ATTN", "False"
+                                         ).lower() in ("true", "1")),
+
+    # use ater linear op if ater ops are enabled
+    "VLLM_USE_AITER_LINEAR":
+    lambda:
+    (os.getenv("VLLM_USE_AITER", "False").lower() in
+     ("true", "1") and os.getenv("VLLM_USE_AITER_LINEAR", "True").lower() in
+     ("true", "1")),
+
+    # use ater rms norm op if ater ops are enabled
+    "VLLM_USE_AITER_NORM":
+    lambda:
+    (os.getenv("VLLM_USE_AITER", "False").lower() in
+     ("true", "1") and os.getenv("VLLM_USE_AITER_NORM", "True").lower() in
+     ("true", "1")),
 
     # rank of the process in the distributed setting, used to determine
     # the driver worker
@@ -561,6 +601,12 @@ environment_variables: Dict[str, Callable[[], Any]] = {
     "VLLM_USE_V1":
     lambda: bool(int(os.getenv("VLLM_USE_V1", "0"))),
 
+    # Try to accumulate this many requests before proceeding
+    "VLLM_SYNC_SERVER_ACCUM_REQUESTS":
+    lambda: int(os.getenv("VLLM_SYNC_SERVER_ACCUM_REQUESTS", "1")),
+    "VLLM_SYNC_SERVER_ENGINE_STEPS_BETWEEN_POLLS":
+    lambda: int(os.getenv("VLLM_SYNC_SERVER_ENGINE_STEPS_BETWEEN_POLLS", "1")),
+
     # Pad the weight for moe kernel or not
     "VLLM_MOE_PADDING":
     lambda: bool(int(os.getenv("VLLM_MOE_PADDING", "0"))),
@@ -568,6 +614,14 @@ environment_variables: Dict[str, Callable[[], Any]] = {
     # Pad the weight for moe kernel or not
     "VLLM_FP8_PADDING":
     lambda: bool(int(os.getenv("VLLM_FP8_PADDING", "1"))),
+
+    # shuffle the weight for moe kernel or not
+    "VLLM_MOE_SHUFFLE":
+    lambda: bool(int(os.getenv("VLLM_MOE_SHUFFLE", "0"))),
+
+    # User persistent version of fused_moe Triton kernel
+    "FUSED_MOE_PERSISTENT":
+    lambda: bool(int(os.getenv("FUSED_MOE_PERSISTENT", "0"))),
 
     # Divisor for dynamic query scale factor calculation for FP8 attention
     "Q_SCALE_CONSTANT":

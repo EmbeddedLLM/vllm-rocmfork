@@ -11,6 +11,7 @@ import torch
 from vllm.engine.arg_utils import AsyncEngineArgs, EngineArgs
 from vllm.engine.async_llm_engine import AsyncLLMEngine
 from vllm.engine.llm_engine import LLMEngine
+from vllm.entrypoints.fast_sync_llm import FastSyncLLM
 from vllm.entrypoints.llm import LLM
 from vllm.executor.ray_utils import initialize_ray_cluster
 from vllm.inputs import PromptType, TextPrompt, TokensPrompt
@@ -36,10 +37,24 @@ os.environ['TORCHINDUCTOR_COMPILE_THREADS'] = '1'
 # see https://github.com/vllm-project/vllm/issues/10619
 torch._inductor.config.compile_threads = 1
 
+# set some common config/environment variables that should be set
+# for all processes created by vllm and all processes
+# that interact with vllm workers.
+# they are executed whenever `import vllm` is called.
+
+# see https://github.com/NVIDIA/nccl/issues/1234
+os.environ['NCCL_CUMEM_ENABLE'] = '0'
+
+# see https://github.com/vllm-project/vllm/issues/10480
+os.environ['TORCHINDUCTOR_COMPILE_THREADS'] = '1'
+# see https://github.com/vllm-project/vllm/issues/10619
+torch._inductor.config.compile_threads = 1
+
 __all__ = [
     "__version__",
     "__version_tuple__",
     "LLM",
+    "FastSyncLLM",
     "ModelRegistry",
     "PromptType",
     "TextPrompt",

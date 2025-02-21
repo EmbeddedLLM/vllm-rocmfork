@@ -641,7 +641,6 @@ To enable multiple multi-modal items per text prompt, you have to set `limit_mm_
 or `--limit-mm-per-prompt` (online serving). For example, to enable passing up to 4 images per text prompt:
 
 Offline inference:
-
 ```python
 llm = LLM(
     model="Qwen/Qwen2-VL-7B-Instruct",

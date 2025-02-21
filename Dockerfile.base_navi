@@ -6,10 +6,19 @@ ARG RCCL_BRANCH="648a58d"
 ARG RCCL_REPO="https://github.com/ROCm/rccl"
 ARG TRITON_BRANCH="e5be006"
 ARG TRITON_REPO="https://github.com/triton-lang/triton.git"
+<<<<<<<< HEAD:Dockerfile.base_navi
 ARG PYTORCH_BRANCH="8d4926e"
 ARG PYTORCH_VISION_BRANCH="v0.19.1"
 ARG PYTORCH_REPO="https://github.com/pytorch/pytorch.git"
 ARG PYTORCH_VISION_REPO="https://github.com/pytorch/vision.git"
+========
+ARG PYTORCH_BRANCH="3a585126"
+ARG PYTORCH_VISION_BRANCH="v0.19.1"
+ARG PYTORCH_REPO="https://github.com/pytorch/pytorch.git"
+ARG PYTORCH_VISION_REPO="https://github.com/pytorch/vision.git"
+ARG FA_BRANCH="b7d29fb"
+ARG FA_REPO="https://github.com/ROCm/flash-attention.git"
+>>>>>>>> origin/llama_fp8_12062024:Dockerfile.base
 
 FROM ${BASE_IMAGE} AS base
 
@@ -38,10 +47,18 @@ RUN apt-get update -y \
     && curl -sS https://bootstrap.pypa.io/get-pip.py | python${PYTHON_VERSION} \
     && python3 --version && python3 -m pip --version
 
+<<<<<<<< HEAD:Dockerfile.base_navi
 RUN pip install -U packaging cmake ninja wheel setuptools Cython pybind11
 
 FROM base AS build_hipblaslt
 ARG HIPBLASLT_BRANCH
+========
+RUN pip install -U packaging cmake ninja wheel setuptools pybind11 Cython
+
+FROM base AS build_hipblaslt
+ARG HIPBLASLT_BRANCH
+ARG HIPBLAS_COMMON_BRANCH
+>>>>>>>> origin/llama_fp8_12062024:Dockerfile.base
 # Set to "--legacy_hipblas_direct" for ROCm<=6.2
 ARG LEGACY_HIPBLASLT_OPTION
 RUN git clone https://github.com/ROCm/hipBLAS-common.git
@@ -89,6 +106,11 @@ ARG PYTORCH_BRANCH
 ARG PYTORCH_VISION_BRANCH
 ARG PYTORCH_REPO
 ARG PYTORCH_VISION_REPO
+<<<<<<<< HEAD:Dockerfile.base_navi
+========
+ARG FA_BRANCH
+ARG FA_REPO
+>>>>>>>> origin/llama_fp8_12062024:Dockerfile.base
 RUN git clone ${PYTORCH_REPO} pytorch
 RUN cd pytorch && git checkout ${PYTORCH_BRANCH} && \
     pip install -r requirements.txt && git submodule update --init --recursive \
@@ -129,6 +151,11 @@ ARG PYTORCH_BRANCH
 ARG PYTORCH_VISION_BRANCH
 ARG PYTORCH_REPO
 ARG PYTORCH_VISION_REPO
+<<<<<<<< HEAD:Dockerfile.base_navi
+========
+ARG FA_BRANCH
+ARG FA_REPO
+>>>>>>>> origin/llama_fp8_12062024:Dockerfile.base
 RUN echo "BASE_IMAGE: ${BASE_IMAGE}" > /app/versions.txt \
     && echo "HIPBLAS_COMMON_BRANCH: ${HIPBLAS_COMMON_BRANCH}" >> /app/versions.txt \
     && echo "HIPBLASLT_BRANCH: ${HIPBLASLT_BRANCH}" >> /app/versions.txt \
@@ -140,4 +167,10 @@ RUN echo "BASE_IMAGE: ${BASE_IMAGE}" > /app/versions.txt \
     && echo "PYTORCH_BRANCH: ${PYTORCH_BRANCH}" >> /app/versions.txt \
     && echo "PYTORCH_VISION_BRANCH: ${PYTORCH_VISION_BRANCH}" >> /app/versions.txt \
     && echo "PYTORCH_REPO: ${PYTORCH_REPO}" >> /app/versions.txt \
+<<<<<<<< HEAD:Dockerfile.base_navi
     && echo "PYTORCH_VISION_REPO: ${PYTORCH_VISION_REPO}" >> /app/versions.txt
+========
+    && echo "PYTORCH_VISION_REPO: ${PYTORCH_VISION_REPO}" >> /app/versions.txt \
+    && echo "FA_BRANCH: ${FA_BRANCH}" >> /app/versions.txt \
+    && echo "FA_REPO: ${FA_REPO}" >> /app/versions.txt
+>>>>>>>> origin/llama_fp8_12062024:Dockerfile.base

@@ -20,6 +20,7 @@
 #include <ATen/cuda/CUDAContext.h>
 #include <c10/cuda/CUDAGuard.h>
 #include "../cuda_compat.h"
+#include "../dispatch_utils.h"
 
 #ifndef USE_ROCM
     #include <cub/util_type.cuh>

@@ -1976,7 +1976,11 @@ class HPUModelRunner(HPUModelRunnerBase[ModelInputForHPUWithSamplingMetadata]):
                                 f"graphs{'T' if use_graphs else 'F'}")
         else:
             model_event_name = 'model_executable'
-        with self.profiler.record_event('internal', model_event_name):
+        with set_forward_context(
+                model_input.attn_metadata, self.vllm_config,
+                model_input.virtual_engine), \
+            self.profiler.record_event(
+                    'internal', model_event_name):
             hidden_states = self.model.forward(
                 **execute_model_kwargs,
                 selected_token_indices=sampling_metadata.selected_token_indices

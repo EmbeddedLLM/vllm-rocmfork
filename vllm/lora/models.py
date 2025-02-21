@@ -214,7 +214,6 @@ class LoRAModel(AdapterModel):
             lora_dir, "new_embeddings.safetensors")
         new_embeddings_bin_file_path = os.path.join(lora_dir,
                                                     "new_embeddings.bin")
-
         unexpected_modules: List[Union[list[str], str]]
         if os.path.isfile(lora_tensor_path):
             tensors: Dict[str, torch.Tensor] = {}

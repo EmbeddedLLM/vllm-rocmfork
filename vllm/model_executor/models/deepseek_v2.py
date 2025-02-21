@@ -265,7 +265,6 @@ class DeepseekV2Attention(nn.Module):
                                         prefix=f"{prefix}.o_proj")
         if rope_scaling:
             rope_scaling["rope_type"] = 'deepseek_yarn'
-
         self.rotary_emb = get_rope(qk_rope_head_dim,
                                    rotary_dim=qk_rope_head_dim,
                                    max_position=max_position_embeddings,

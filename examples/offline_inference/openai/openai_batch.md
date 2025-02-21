@@ -22,7 +22,6 @@ We currently support `/v1/chat/completions`, `/v1/embeddings`, and `/v1/score` e
   - Create a [user access token](https://huggingface.co/docs/hub/en/security-tokens)
   - Install the token on your machine (Run `huggingface-cli login`).
   - Get access to the gated model by [visiting the model card](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct) and agreeing to the terms and conditions.
-
 ## Example 1: Running with a local file
 
 ### Step 1: Create your batch file
@@ -42,7 +41,6 @@ $ cat offline_inference/openai/openai_example_batch.jsonl
 ```
 
 ### Step 2: Run the batch
-
 The batch running tool is designed to be used from the command line.
 
 You can run the batch with the following command, which will write its results to a file called `results.jsonl`

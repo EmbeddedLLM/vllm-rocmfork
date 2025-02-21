@@ -933,6 +933,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
         # Run the decoder.
         # Use persistent buffers for CUDA graphs.
         with set_forward_context(attn_metadata, self.vllm_config):
+            positions = self.mrope_positions[:, :num_input_tokens] \
+                if self.model_config.uses_mrope \
+                else self.positions[:num_input_tokens]
             hidden_states = self.model(
                 input_ids=input_ids,
                 positions=positions,
@@ -1147,6 +1150,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
             })
 
         with set_forward_context(None, self.vllm_config):
+            positions = self.mrope_positions[:, :num_tokens] \
+                if self.model_config.uses_mrope \
+                else self.positions[:num_tokens]
             hidden_states = model(
                 input_ids=input_ids,
                 positions=positions,

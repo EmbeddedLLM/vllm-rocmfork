@@ -34,6 +34,10 @@ from vllm.model_executor.utils import set_weight_attrs
 from vllm.platforms import current_platform
 from vllm.utils import is_navi
 
+if envs.VLLM_USE_AITER_MOE:
+    from aiter.fused_moe_bf16_asm import asm_moe
+    from aiter.ops.shuffle import shuffle_weight
+
 ACTIVATION_SCHEMES = ["static", "dynamic"]
 
 logger = init_logger(__name__)
@@ -613,6 +617,23 @@ class Fp8MoEMethod(FusedMoEMethodBase):
                                                   requires_grad=False)
             layer.w2_weight = torch.nn.Parameter(w2_weight,
                                                  requires_grad=False)
+
+            if envs.VLLM_USE_AITER_MOE:
+                w13_scales = layer.w13_weight_scale.data.unsqueeze(
+                    -1).unsqueeze(-1).expand(
+                        (-1, layer.w13_weight.shape[1], -1))
+                w2_scales = layer.w2_weight_scale.data.unsqueeze(-1).unsqueeze(
+                    -1).expand((-1, layer.w2_weight.shape[1], -1))
+                layer.w2_weight_scale = torch.nn.Parameter(
+                    w2_scales.contiguous(), requires_grad=False)
+                layer.w13_weight_scale = torch.nn.Parameter(
+                    w13_scales.contiguous(), requires_grad=False)
+                layer.w13_weight = torch.nn.Parameter(shuffle_weight(
+                    layer.w13_weight),
+                                                      requires_grad=False)
+                layer.w2_weight = torch.nn.Parameter(shuffle_weight(
+                    layer.w2_weight),
+                                                     requires_grad=False)
             return
 
         # If checkpoint is fp8, we need to handle that the
@@ -682,8 +703,22 @@ class Fp8MoEMethod(FusedMoEMethodBase):
                             dq_weight, max_w13_scales[expert_id])
                     start += shard_size
 
-            layer.w13_weight_scale = torch.nn.Parameter(max_w13_scales,
-                                                        requires_grad=False)
+            if envs.VLLM_USE_AITER_MOE:
+                max_w13_scales = max_w13_scales.unsqueeze(-1).unsqueeze(
+                    -1).expand((-1, layer.w13_weight.shape[1], -1))
+                w2_scales = layer.w2_weight_scale.data.unsqueeze(-1).unsqueeze(
+                    -1).expand((-1, layer.w2_weight.shape[1], -1))
+                layer.w2_weight_scale = torch.nn.Parameter(
+                    w2_scales.contiguous(), requires_grad=False)
+                layer.w13_weight = torch.nn.Parameter(shuffle_weight(
+                    layer.w13_weight),
+                                                      requires_grad=False)
+                layer.w2_weight = torch.nn.Parameter(shuffle_weight(
+                    layer.w2_weight),
+                                                     requires_grad=False)
+
+            layer.w13_weight_scale = torch.nn.Parameter(
+                max_w13_scales.contiguous(), requires_grad=False)
             return
 
     def apply(
@@ -714,6 +749,18 @@ class Fp8MoEMethod(FusedMoEMethodBase):
             scoring_func=scoring_func,
             e_score_correction_bias=e_score_correction_bias,
         )
+
+        if envs.VLLM_USE_AITER_MOE:
+            return asm_moe(hidden_states=x,
+                           w1=layer.w13_weight,
+                           w2=layer.w2_weight,
+                           topk_weight=topk_weights,
+                           topk_ids=topk_ids,
+                           fc1_scale=layer.w13_weight_scale,
+                           fc2_scale=layer.w2_weight_scale,
+                           fc1_smooth_scale=None,
+                           fc2_smooth_scale=None,
+                           a16=False)
 
         return fused_experts(
             x,

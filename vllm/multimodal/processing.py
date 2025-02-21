@@ -32,6 +32,10 @@ if TYPE_CHECKING:
 logger = init_logger(__name__)
 
 _S = TypeVar("_S", str, list[int])
+_PromptSeq = Union[str, list[int]]
+
+PromptSeq = Union[str, list[int]]
+"""A token sequence (list of token IDs) or text."""
 
 PromptSeq = Union[str, list[int]]
 """A token sequence (list of token IDs) or text."""

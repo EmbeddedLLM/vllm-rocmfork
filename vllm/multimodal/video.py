@@ -6,6 +6,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+import cv2
 import numpy as np
 import numpy.typing as npt
 from PIL import Image
@@ -95,7 +96,6 @@ def resize_video(frames: npt.NDArray, size: tuple[int, int]) -> npt.NDArray:
     resized_frames = np.empty((num_frames, new_height, new_width, channels),
                               dtype=frames.dtype)
     # lazy import cv2 to avoid bothering users who only use text models
-    import cv2
     for i, frame in enumerate(frames):
         resized_frame = cv2.resize(frame, (new_width, new_height))
         resized_frames[i] = resized_frame

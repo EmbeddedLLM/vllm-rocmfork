@@ -28,14 +28,15 @@
     },
     "8": {
         "BLOCK_SIZE_M": 16,
-        "BLOCK_SIZE_N": 64,
-        "BLOCK_SIZE_K": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
         "GROUP_SIZE_M": 1,
         "num_warps": 4,
         "num_stages": 2,
         "waves_per_eu": 0
     },
     "16": {
+<<<<<<<< HEAD:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X,dtype=fp8_w8a8.json
         "BLOCK_SIZE_M": 32,
         "BLOCK_SIZE_N": 64,
         "BLOCK_SIZE_K": 256,
@@ -67,16 +68,53 @@
         "BLOCK_SIZE_N": 128,
         "BLOCK_SIZE_K": 128,
         "GROUP_SIZE_M": 1,
+========
+        "BLOCK_SIZE_M": 16,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 1,
+        "num_warps": 4,
+        "num_stages": 2,
+        "waves_per_eu": 0
+    },
+    "24": {
+        "BLOCK_SIZE_M": 16,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 1,
+        "num_warps": 4,
+        "num_stages": 2,
+        "waves_per_eu": 0
+    },
+    "32": {
+        "BLOCK_SIZE_M": 16,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
+        "GROUP_SIZE_M": 4,
+        "num_warps": 4,
+        "num_stages": 2,
+        "waves_per_eu": 0
+    },
+    "48": {
+        "BLOCK_SIZE_M": 16,
+        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_K": 256,
+        "GROUP_SIZE_M": 1,
+>>>>>>>> origin/llama_fp8_12062024:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X_OAM,dtype=fp8_w8a8.json
         "num_warps": 4,
         "num_stages": 2,
         "waves_per_eu": 0
     },
     "64": {
         "BLOCK_SIZE_M": 32,
-        "BLOCK_SIZE_N": 64,
-        "BLOCK_SIZE_K": 256,
+        "BLOCK_SIZE_N": 128,
+        "BLOCK_SIZE_K": 128,
         "GROUP_SIZE_M": 4,
+<<<<<<<< HEAD:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X,dtype=fp8_w8a8.json
         "num_warps": 2,
+========
+        "num_warps": 4,
+>>>>>>>> origin/llama_fp8_12062024:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X_OAM,dtype=fp8_w8a8.json
         "num_stages": 2,
         "waves_per_eu": 0
     },
@@ -85,13 +123,17 @@
         "BLOCK_SIZE_N": 64,
         "BLOCK_SIZE_K": 256,
         "GROUP_SIZE_M": 1,
+<<<<<<<< HEAD:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X,dtype=fp8_w8a8.json
         "num_warps": 4,
+========
+        "num_warps": 2,
+>>>>>>>> origin/llama_fp8_12062024:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X_OAM,dtype=fp8_w8a8.json
         "num_stages": 2,
         "waves_per_eu": 0
     },
     "128": {
         "BLOCK_SIZE_M": 64,
-        "BLOCK_SIZE_N": 64,
+        "BLOCK_SIZE_N": 128,
         "BLOCK_SIZE_K": 256,
         "GROUP_SIZE_M": 4,
         "num_warps": 4,
@@ -119,9 +161,13 @@
     "1024": {
         "BLOCK_SIZE_M": 128,
         "BLOCK_SIZE_N": 128,
-        "BLOCK_SIZE_K": 128,
+        "BLOCK_SIZE_K": 256,
         "GROUP_SIZE_M": 1,
+<<<<<<<< HEAD:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X,dtype=fp8_w8a8.json
         "num_warps": 4,
+========
+        "num_warps": 8,
+>>>>>>>> origin/llama_fp8_12062024:vllm/model_executor/layers/fused_moe/configs/E=8,N=7168,device_name=AMD_Instinct_MI300X_OAM,dtype=fp8_w8a8.json
         "num_stages": 2,
         "waves_per_eu": 0
     },

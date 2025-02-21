@@ -1063,6 +1063,18 @@ class BitsAndBytesModelLoader(BaseModelLoader):
         if hf_to_vllm_mapper := getattr(model, "hf_to_vllm_mapper", None):
             self.weight_mapper = lambda name: hf_to_vllm_mapper._map_name(name)
 
+        self.modules_mapping = ParamMapping(
+            copy.deepcopy(model.packed_modules_mapping))
+
+        # For some models like Molmo, we need to use hf_to_vllm_mapper
+        # to ensure correct loading of weights.
+        if hf_to_vllm_mapper := getattr(model, "hf_to_vllm_mapper", None):
+            self.weight_mapper = lambda name: hf_to_vllm_mapper._map_name(name)
+
+        # For some models like Molmo, we need to use hf_to_vllm_mapper
+        # to ensure correct loading of weights.
+        if hf_to_vllm_mapper := getattr(model, "hf_to_vllm_mapper", None):
+            self.weight_mapper = lambda name: hf_to_vllm_mapper._map_name(name)
         # Modules whose weights might have fused on disk
         # we need their output_sizes to make shard in flight correctly with TP
         self.maybe_fused_weights_modules: Dict[str, List[int]] = {}

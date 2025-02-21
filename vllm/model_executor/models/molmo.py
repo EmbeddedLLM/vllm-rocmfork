@@ -95,6 +95,11 @@ class MolmoImageInputs(TypedDict):
     num_crops: torch.Tensor
     """Shape: `(batch_size, num_images)`"""
 
+    image_start_end: Tuple[int, int]
+    """Starting and ending index of placeholder 
+    tokens
+    """
+
 
 @dataclass
 class VisionBackboneConfig:

@@ -166,7 +166,6 @@ class CompressedTensors24(CompressedTensorsScheme):
         """
         Compress weights after loading. Store compressed weight and meta
             tensor
-
         :post-condition: layer.w_compressed and layer.meta are
             set to the compressed weight and meta tensor in the
             format expected by the Cutlass kernels

@@ -29,6 +29,9 @@ if TYPE_CHECKING:
 
 logger = init_logger(__name__)
 
+# TODO: Tune the MM cache size
+MM_CACHE_SIZE = 256
+
 N = TypeVar("N", bound=Type[nn.Module])
 _I = TypeVar("_I", bound=BaseProcessingInfo)
 _I_co = TypeVar("_I_co", bound=BaseProcessingInfo, covariant=True)

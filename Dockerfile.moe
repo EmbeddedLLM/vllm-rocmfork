@@ -1,0 +1,75 @@
+##ARG BASE_IMAGE="rocmshared/pytorch-private:ROCm6.2_hipblaslt0.10.0_pytorch2.5_vllm0.6.0" ## Used for sept docker
+
+##For October Docker:
+#ARG BASE_IMAGE="rocmshared/pytorch-private:ROCm6.2_hipblaslt0.10.0_pytorch2.5_vllm0.6.2_cython" 
+
+##For Nov Docker:
+ARG BASE_IMAGE="rocm/vllm-dev:20241121"
+
+ARG COMMON_WORKDIR=/app/
+
+FROM ${BASE_IMAGE} as base
+USER root
+
+WORKDIR ${COMMON_WORKDIR}
+
+COPY ./Dockerfile.moe ${COMMON_WORKDIR}
+
+RUN pip install text_generation==0.7.0 simple_parsing==0.1.5 dashscope==1.18.0 loguru==0.7.2 prettytable==3.10.0  modelscope matplotlib
+
+
+ARG ARG_PYTORCH_ROCM_ARCH="gfx90a;gfx942"
+ENV PYTORCH_ROCM_ARCH=${ARG_PYTORCH_ROCM_ARCH}
+
+
+ARG VLLM_REPO="https://github.com/ROCm/vllm.git"
+ARG VLLM_BRANCH="moe_final_v0.6.0_Nov19"
+ARG REPO_NAME="rocm_vllm"
+RUN pip uninstall -y vllm \
+    && git clone ${VLLM_REPO} ${REPO_NAME}\
+    && cd ${REPO_NAME} \
+    && git checkout ${VLLM_BRANCH} \
+    && python3 setup.py develop \
+    && python3 setup_cython.py build_ext --inplace
+
+WORKDIR ${COMMON_WORKDIR}
+
+ARG TRITON_REPO="https://github.com/ROCm/triton.git"
+ARG TRITON_BRANCH="shared/triton-moe-opt"
+RUN pip uninstall -y triton \
+    && git clone ${TRITON_REPO} \
+    && cd triton \
+    && git checkout ${TRITON_BRANCH} \
+    && cd python \
+    && pip install .
+
+
+ENV TORCH_BLAS_PREFER_HIPBLASLT=1
+ENV VLLM_USE_ROCM_CUSTOM_PAGED_ATTN=1
+ENV HIP_FORCE_DEV_KERNARG=1
+ENV VLLM_USE_TRITON_FLASH_ATTN=0
+ENV FUSED_MOE_PERSISTENT=1
+ENV VLLM_MOE_PADDING=128
+ENV VLLM_MOE_SHUFFLE=1
+ENV TRITON_HIP_USE_NEW_STREAM_PIPELINE=1
+ENV VLLM_SCHED_PREFILL_COUNT=0
+ENV HIP_VISISBLE_DEVICES=0,1,2,3,4,5,6,7
+
+## --- Notes (Nov19) ---
+# Add fp8 moe support for bypassLDS and Padding
+# Fp16 padding updated to the "new way". Similar to fp8 padding 
+# Fixed moe tuning space for fp8
+# Moe tuned configs for fp8 & fp16 with num_stages=2
+
+## --- Notes (Oct3) ---
+# Replace torch.sum with moe_sum hip kernel
+# Increase max_seq_len_to_capture=32K to enable graph capture on longer prompt size
+# For TTFT calc: use --enforce-eager to avoid extra 'decode' from the async output processing
+# For TPOT calc: Either disable async process or account for the extra decode accordingly
+
+
+## --- Notes (Sept24) ---
+# Disabled rocm partially supported warning
+# Added warning log if moe tuned config is not picked by vllm
+# Added MI300X_OAM tuned files (mi300 80cu as mi308)
+# Added cython build

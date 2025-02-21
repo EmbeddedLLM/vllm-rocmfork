@@ -373,6 +373,7 @@ class ModelConfig:
         self.is_hybrid = self._init_is_hybrid()
         self.has_inner_state = self._init_has_inner_state()
 
+        from vllm.platforms import current_platform
         if current_platform.is_neuron():
             self.override_neuron_config = override_neuron_config
         else:

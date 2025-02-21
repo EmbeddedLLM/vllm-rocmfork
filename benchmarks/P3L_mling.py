@@ -222,7 +222,6 @@ def main(args: argparse.Namespace):
 
         logger.info(MESSAGE)
         print(MESSAGE)
-
     ending_time = datetime.datetime.now()
     MESSAGE = (f"Done @ {ending_time} after processing for" \
                 f" {ending_time-starting_time}" \
