@@ -57,6 +57,8 @@ using std::numeric_limits;
     __VA_ARGS__                                                   \
   }
 
+#ifndef USE_ROCM
+#define FLASHINFER_WARP_SIZE 32
 #define DISPATCH_COMPUTE_CAP_NUM_THREADS(compute_capacity, BLOCK_THREADS, ...) \
   if (compute_capacity.first >= 8) {                                           \
     constexpr uint32_t BLOCK_THREADS = 1024;                                   \
@@ -65,6 +67,14 @@ using std::numeric_limits;
     constexpr uint32_t BLOCK_THREADS = 512;                                    \
     __VA_ARGS__                                                                \
   }
+#else
+#define FLASHINFER_WARP_SIZE warpSize
+#define DISPATCH_COMPUTE_CAP_NUM_THREADS(compute_capacity, BLOCK_THREADS, ...) \
+  {                                           \
+    constexpr uint32_t BLOCK_THREADS = 1024;                                   \
+    __VA_ARGS__                                                                \
+  }
+#endif
 
 constexpr BlockScanAlgorithm SCAN_ALGO = BLOCK_SCAN_WARP_SCANS;
 constexpr BlockReduceAlgorithm REDUCE_ALGO = BLOCK_REDUCE_WARP_REDUCTIONS;
@@ -102,7 +112,7 @@ template <typename T, uint32_t BLOCK_THREADS, BlockScanAlgorithm SCAN_ALGORITHM,
           BlockReduceAlgorithm REDUCE_ALGORITHM>
 struct SamplingTempStorage {
   union {
-    T deterministic_scan[BLOCK_THREADS / 32];
+    T deterministic_scan[BLOCK_THREADS / FLASHINFER_WARP_SIZE];
     typename BlockScan<T, BLOCK_THREADS, SCAN_ALGORITHM>::TempStorage scan;
     typename BlockReduce<T, BLOCK_THREADS, REDUCE_ALGORITHM>::TempStorage reduce;
     typename BlockReduce<Pair<T>, BLOCK_THREADS, REDUCE_ALGORITHM>::TempStorage reduce_pair;
@@ -139,7 +149,7 @@ __device__ __forceinline__ void DeterministicInclusiveSum(
   T thread_exclusive_prefix_sum = thread_sum;
 
 #pragma unroll
-  for (uint32_t offset = 1; offset < 32; offset *= 2) {
+  for (uint32_t offset = 1; offset < FLASHINFER_WARP_SIZE; offset *= 2) {
 #ifndef USE_ROCM
     T tmp = __shfl_up_sync(0xffffffff, thread_exclusive_prefix_sum, offset);
 #else
@@ -155,12 +165,12 @@ __device__ __forceinline__ void DeterministicInclusiveSum(
 #else
   T warp_sum = __shfl(thread_exclusive_prefix_sum, threadIdx.x | 0xffffffff);
 #endif
-  if (threadIdx.x % 32 == 31) {
+  if ((threadIdx.x % FLASHINFER_WARP_SIZE) == (FLASHINFER_WARP_SIZE - 1)) {
     thread_exclusive_prefix_sum = 0;
   }
 
 #pragma unroll
-  for (uint32_t offset = 16; offset >= 1; offset /= 2) {
+  for (uint32_t offset = FLASHINFER_WARP_SIZE/2; offset >= 1; offset /= 2) {
 #ifndef USE_ROCM
     T tmp = __shfl_xor_sync(0xffffffff, thread_exclusive_prefix_sum, offset);
 #else
@@ -174,15 +184,15 @@ __device__ __forceinline__ void DeterministicInclusiveSum(
     }
   }
 
-  smem_prefix_sum[threadIdx.x / 32] = warp_sum;
+  smem_prefix_sum[threadIdx.x / FLASHINFER_WARP_SIZE] = warp_sum;
   __syncthreads();
 
-  if (threadIdx.x < 32) {
+  if (threadIdx.x < FLASHINFER_WARP_SIZE) {
     T warp_exclusive_prefix_sum =
-        (threadIdx.x < BLOCK_THREADS / 32) ? smem_prefix_sum[threadIdx.x] : 0;
+        (threadIdx.x < BLOCK_THREADS / FLASHINFER_WARP_SIZE) ? smem_prefix_sum[threadIdx.x] : 0;
 
 #pragma unroll
-    for (uint32_t offset = 1; offset < 32; offset *= 2) {
+    for (uint32_t offset = 1; offset < FLASHINFER_WARP_SIZE; offset *= 2) {
 #ifndef USE_ROCM
       T tmp = __shfl_up_sync(0xffffffff, warp_exclusive_prefix_sum, offset);
 #else
@@ -193,12 +203,12 @@ __device__ __forceinline__ void DeterministicInclusiveSum(
       }
     }
 
-    if (threadIdx.x % 32 == 31) {
+    if ((threadIdx.x % FLASHINFER_WARP_SIZE) == (FLASHINFER_WARP_SIZE - 1)) {
       warp_exclusive_prefix_sum = 0;
     }
 
 #pragma unroll
-    for (uint32_t offset = 16; offset >= 1; offset /= 2) {
+    for (uint32_t offset = FLASHINFER_WARP_SIZE/2; offset >= 1; offset /= 2) {
 #ifndef USE_ROCM
       T tmp = __shfl_xor_sync(0xffffffff, warp_exclusive_prefix_sum, offset);
 #else
@@ -211,7 +221,7 @@ __device__ __forceinline__ void DeterministicInclusiveSum(
         warp_exclusive_prefix_sum = tmp;
       }
     }
-    if (threadIdx.x < BLOCK_THREADS / 32) {
+    if (threadIdx.x < BLOCK_THREADS / FLASHINFER_WARP_SIZE) {
       smem_prefix_sum[threadIdx.x] = warp_exclusive_prefix_sum;
     }
   }
@@ -219,7 +229,7 @@ __device__ __forceinline__ void DeterministicInclusiveSum(
 
 #pragma unroll
   for (uint32_t i = 0; i < VEC_SIZE; ++i) {
-    out_data[i] = smem_prefix_sum[threadIdx.x / 32] + thread_exclusive_prefix_sum + thread_data[i];
+    out_data[i] = smem_prefix_sum[threadIdx.x / FLASHINFER_WARP_SIZE] + thread_exclusive_prefix_sum + thread_data[i];
   }
 }
 
