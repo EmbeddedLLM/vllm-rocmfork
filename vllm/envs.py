@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     VLLM_USE_AITER_NORM: bool = False
     VLLM_USE_AITER_FP8_BLOCK_SCALED_MOE: bool = False
     VLLM_USE_AITER_W8A8_BLOCK_GEMM: bool = False
+    VLLM_USE_AITER_MLA: bool = False
     RANK: int = 0
     VLLM_FLASH_ATTN_VERSION: Optional[int] = None
     LOCAL_RANK: int = 0
@@ -335,6 +336,11 @@ environment_variables: Dict[str, Callable[[], Any]] = {
     lambda: (os.getenv("VLLM_USE_AITER", "False").lower() in
              ("true", "1") and os.getenv("VLLM_USE_AITER_W8A8_BLOCK_GEMM",
                                          "False").lower() in ("true", "1")),
+
+    # flag to control if vllm should use AITER MoE
+    "VLLM_USE_AITER_MLA":
+    lambda: (os.environ.get("VLLM_USE_AITER_MLA", "False").lower() in
+             ("true", "1")),
 
     # rank of the process in the distributed setting, used to determine
     # the driver worker
