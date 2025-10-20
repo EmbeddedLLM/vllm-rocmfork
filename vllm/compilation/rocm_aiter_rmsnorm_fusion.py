@@ -76,13 +76,12 @@ def rocm_aiter_rmsnorm_fused_add_dynamic_quant_impl(
     out: torch.Tensor,
     input: torch.Tensor,
     residual: torch.Tensor,
+    residual_out: torch.Tensor,
     weight: torch.Tensor,
     y_scale: torch.Tensor,
     epsilon: float,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     import aiter as rocm_aiter
-
-    residual_out = torch.empty_like(residual)
 
     rocm_aiter.rmsnorm2d_fwd_with_add_dynamicquant(
         out,
@@ -102,11 +101,12 @@ def rocm_aiter_rmsnorm_fused_add_dynamic_quant_fake(
     out: torch.Tensor,
     input: torch.Tensor,
     residual: torch.Tensor,
+    residual_out: torch.Tensor,
     weight: torch.Tensor,
     y_scale: torch.Tensor,
     epsilon: float,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    return out, torch.empty_like(residual), y_scale
+    return out, residual_out, y_scale
 
 
 if current_platform.is_rocm():
@@ -121,7 +121,7 @@ if current_platform.is_rocm():
     direct_register_custom_op(
         op_name="rocm_aiter_rmsnorm_fused_add_dynamic_quant",
         op_func=rocm_aiter_rmsnorm_fused_add_dynamic_quant_impl,
-        mutates_args=["out", "y_scale"],
+        mutates_args=["out", "residual_out", "y_scale"],
         fake_impl=rocm_aiter_rmsnorm_fused_add_dynamic_quant_fake,
         dispatch_key=current_platform.dispatch_key,
     )
@@ -267,14 +267,17 @@ class FusedAddRMSNormAiterDynamicQuantPattern(RMSNormAiterQuantPattern):
             weight: torch.Tensor,
             scale: torch.Tensor,
         ):
-            return self.FUSED_OP(
+            residual_out = torch.empty_like(residual)
+            self.FUSED_OP(
                 out=result,
                 input=input,
                 residual=residual,
+                residual_out=residual_out,
                 weight=weight,
                 y_scale=scale,
                 epsilon=self.epsilon,
             )
+            return result, residual_out, scale
 
         inputs = [
             torch.empty(5, 4, device="cuda", dtype=self.quant_dtype),  # result
