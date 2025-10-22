@@ -49,13 +49,24 @@ if current_platform.is_rocm():
         # NOTE: The weight has to be shuffled in the
         # process_weights_after_loading of the CompressedTensorsW8A8Fp8 class
 
-        m = input.shape[0]
-        n = weight.shape[0]
-        from aiter import gemm_a8w8_bpreshuffle_ck
+        # m = input.shape[0]
+        # n = weight.shape[0]
+        # from aiter import gemm_a8w8_bpreshuffle_ck
 
-        Y = torch.empty(m, n, dtype=out_dtype, device=input.device)
-        gemm_a8w8_bpreshuffle_ck(input, weight, scale_a, scale_b, Y)
-        return Y
+        # Y = torch.empty(m, n, dtype=out_dtype, device=input.device)
+        # gemm_a8w8_bpreshuffle_ck(input, weight, scale_a, scale_b, Y)
+
+        from aiter import hipb_mm
+        return hipb_mm(
+            input, 
+            weight, 
+            solution_index=-1, 
+            bias=None, 
+            out_dtype=out_dtype, 
+            scaleA=scale_a, 
+            scaleB=scale_b.t() if scale_b is not None else None, 
+            scaleOut=None, 
+            bpreshuffle=True)
 
     def rocm_aiter_gemm_a8w8_bpreshuffle_fake(
         input: torch.Tensor,
@@ -65,7 +76,7 @@ if current_platform.is_rocm():
         scale_b: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         m = input.shape[0]
-        n = weight.shape[0]
+        n = weight.shape[1]
         if out_dtype is None:
             out_dtype = input.dtype
         return torch.empty((m, n), dtype=out_dtype, device=input.device)
@@ -387,7 +398,7 @@ def rocm_aiter_per_token_w8a8_scaled_mm(
     output_shape: list,
 ) -> torch.Tensor:
     output = torch.ops.vllm.rocm_aiter_gemm_a8w8_bpreshuffle(
-        qinput, weight, out_dtype=out_dtype, scale_a=scale_a, scale_b=scale_b
+        qinput, weight.t(), out_dtype=out_dtype, scale_a=scale_a, scale_b=scale_b
     )
     if bias is not None:
         output = output + bias

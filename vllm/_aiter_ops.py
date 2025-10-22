@@ -16,12 +16,14 @@ from vllm.utils import direct_register_custom_op
 # Currently this condition is used to determine
 # whether to use bpreshuffle PTPC GEMM kernel.
 def use_swizzle_gemm(n: int, k: int, dtype: torch.dtype) -> bool:
-    multiple_of: int = 64
+    return True
+    multiple_of: int = 16
 
-    if dtype == current_platform.fp8_dtype():
-        multiple_of = 128
+    # if dtype == current_platform.fp8_dtype():
+    #     multiple_of = 128
 
-    return n % multiple_of == 0 and k % multiple_of == 0
+    use_swizzle = n % multiple_of == 0 and k % multiple_of == 0
+    return use_swizzle
 
 
 def can_shuffle(n: int, k: int, layout: tuple[int, int]):
