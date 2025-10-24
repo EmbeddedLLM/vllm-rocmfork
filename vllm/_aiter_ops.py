@@ -6,24 +6,6 @@ from vllm.platforms import current_platform
 from vllm.utils.torch_utils import direct_register_custom_op
 
 
-# This less strict condition works generally for
-# all bpreshuffle CK kernels and MoE kernels
-# However, it is recommended to use use_shuffle()
-# switch to use_swizzle_gemm when in runtime or staging
-# the actual kernel throws error like gemm shape not supported
-# Currently this condition is used to determine
-# whether to use bpreshuffle PTPC GEMM kernel.
-def use_swizzle_gemm(n: int, k: int, dtype: torch.dtype) -> bool:
-    return True
-    multiple_of: int = 16
-
-    # if dtype == current_platform.fp8_dtype():
-    #     multiple_of = 128
-
-    use_swizzle = n % multiple_of == 0 and k % multiple_of == 0
-    return use_swizzle
-
-
 def can_shuffle(n: int, k: int, layout: tuple[int, int]) -> bool:
     IN, IK = layout
     BK = IK * 2

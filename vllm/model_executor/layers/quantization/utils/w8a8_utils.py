@@ -58,14 +58,14 @@ if current_platform.is_rocm():
 
         from aiter import hipb_mm
         return hipb_mm(
-            input, 
-            weight, 
-            solution_index=-1, 
-            bias=None, 
-            out_dtype=out_dtype, 
-            scaleA=scale_a, 
-            scaleB=scale_b.t() if scale_b is not None else None, 
-            scaleOut=None, 
+            input,
+            weight,
+            solution_index=-1,
+            bias=None,
+            out_dtype=out_dtype,
+            scaleA=scale_a,
+            scaleB=scale_b,
+            scaleOut=None,
             bpreshuffle=True)
 
     def rocm_aiter_gemm_a8w8_bpreshuffle_fake(
@@ -398,7 +398,7 @@ def rocm_aiter_per_token_w8a8_scaled_mm(
     output_shape: list,
 ) -> torch.Tensor:
     output = torch.ops.vllm.rocm_aiter_gemm_a8w8_bpreshuffle(
-        qinput, weight.t(), out_dtype=out_dtype, scale_a=scale_a, scale_b=scale_b
+        qinput, weight.t(), out_dtype=out_dtype, scale_a=scale_a, scale_b=scale_b.t() if scale_b is not None else None
     )
     if bias is not None:
         output = output + bias
