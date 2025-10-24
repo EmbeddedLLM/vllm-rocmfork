@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
-from typing import Any, Callable, Optional, cast
+from collections.abc import Callable
+from typing import Any, cast
 
 import torch
 from torch.nn import Parameter
@@ -26,11 +27,11 @@ __all__ = ["QuarkW8A8Fp8"]
 
 class QuarkW8A8Fp8(QuarkScheme):
     def __init__(
-        self, weight_config: dict[str, Any], input_config: Optional[dict[str, Any]]
+        self, weight_config: dict[str, Any], input_config: dict[str, Any] | None
     ):
         self.weight_qscheme = cast(str, weight_config.get("qscheme"))
         self.is_static_input_scheme: bool = False
-        self.input_qscheme: Optional[str] = None
+        self.input_qscheme: str | None = None
         if input_config is not None:
             self.is_static_input_scheme = not cast(bool, input_config.get("is_dynamic"))
             self.input_qscheme = cast(str, input_config.get("qscheme"))
@@ -102,16 +103,32 @@ class QuarkW8A8Fp8(QuarkScheme):
                 weight_scale = layer.weight_scale.data
             if self.act_quant_group_shape == GroupShape.PER_TOKEN:
                 weight_scale = weight_scale.view(-1, 1)
+
+            from vllm._aiter_ops import can_shuffle
+
+            layout = (16, 16)
+            use_swizzle_gemm = can_shuffle(*weight.shape, layout=layout)
+            self.use_aiter_and_is_supported = (
+                self.use_aiter_and_is_supported and use_swizzle_gemm
+            )
             if self.use_aiter_and_is_supported:
                 from aiter.ops.shuffle import shuffle_weight
 
                 # keep the weight as (N, K)
                 layer.weight = Parameter(
-                    shuffle_weight(weight, layout=(16, 16)), requires_grad=False
+                    shuffle_weight(weight, layout=layout), requires_grad=False
                 )
             else:
                 # keep the weight as (K, N)
                 layer.weight = Parameter(weight.t(), requires_grad=False)
+
+            if current_platform.is_rocm():
+                self.fp8_linear = Fp8LinearOp(
+                    act_quant_static=self.is_static_input_scheme,
+                    act_quant_group_shape=self.act_quant_group_shape,
+                    pad_output=not use_swizzle_gemm,
+                )
+
             # required by torch.compile to be torch.nn.Parameter
             layer.weight_scale = Parameter(weight_scale, requires_grad=False)
 
@@ -182,7 +199,7 @@ class QuarkW8A8Fp8(QuarkScheme):
         self,
         layer: torch.nn.Module,
         x: torch.Tensor,
-        bias: Optional[torch.Tensor] = None,
+        bias: torch.Tensor | None = None,
     ) -> torch.Tensor:
         return self.fp8_linear.apply(
             input=x,

@@ -1,13 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 from dataclasses import dataclass
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 import torch
 
-from vllm.attention.backends.abstract import AttentionBackend, AttentionMetadata
+from vllm.attention.backends.abstract import (
+    AttentionBackend,
+    AttentionMetadata,
+    MultipleOf,
+)
 from vllm.config import VllmConfig
 from vllm.logger import init_logger
+from vllm.platforms import current_platform
 from vllm.utils.deep_gemm import get_paged_mqa_logits_metadata
 from vllm.v1.attention.backends.utils import (
     AttentionCGSupport,
@@ -46,6 +51,12 @@ class DeepseekV32IndexerBackend(AttentionBackend):
     @staticmethod
     def get_kv_cache_stride_order() -> tuple[int, ...]:
         return (0, 1, 2)
+
+    @classmethod
+    def get_supported_kernel_block_size(cls) -> list[int | MultipleOf]:
+        if current_platform.is_rocm():
+            return [MultipleOf(1)]
+        return [64]
 
 
 @dataclass
@@ -97,8 +108,8 @@ class DeepseekV32IndexerMetadata:
     num_prefills: int
     num_prefill_tokens: int
 
-    decode: Optional[DeepSeekV32IndexerDecodeMetadata] = None
-    prefill: Optional[DeepseekV32IndexerPrefillMetadata] = None
+    decode: DeepSeekV32IndexerDecodeMetadata | None = None
+    prefill: DeepseekV32IndexerPrefillMetadata | None = None
 
 
 # TODO (zyongye) optimize this, this is now vibe coded
@@ -327,10 +338,10 @@ class DeepseekV32IndexerMetadataBuilder(AttentionMetadataBuilder):
             requires_padding = (decode_lens_cpu.max() > decode_lens_cpu.min()).item()
 
             seq_lens = common_attn_metadata.seq_lens[:num_decodes]
-
-            self.scheduler_metadata_buffer[:] = get_paged_mqa_logits_metadata(
-                seq_lens, self.kv_cache_spec.block_size, self.num_sms
-            )
+            if current_platform.is_cuda():
+                self.scheduler_metadata_buffer[:] = get_paged_mqa_logits_metadata(
+                    seq_lens, self.kv_cache_spec.block_size, self.num_sms
+                )
             decode_metadata = DeepSeekV32IndexerDecodeMetadata(
                 block_table=common_attn_metadata.block_table_tensor[:num_decodes, ...],
                 seq_lens=common_attn_metadata.seq_lens[:num_decodes],
