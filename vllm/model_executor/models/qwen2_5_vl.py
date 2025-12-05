@@ -99,7 +99,7 @@ from .qwen2_vl import Qwen2VLDummyInputsBuilder as Qwen2_5_VLDummyInputsBuilder
 from .qwen2_vl import (
     Qwen2VLMultiModalProcessor,
     Qwen2VLProcessingInfo,
-    apply_rotary_pos_emb_vision,
+    apply_rotary_2c_cuda,
 )
 from .utils import (
     AutoWeightsLoader,
@@ -387,22 +387,26 @@ class Qwen2_5_VisionAttention(nn.Module):
         )
 
         if rotary_pos_emb_cos is not None and rotary_pos_emb_sin is not None:
-            qk, v = qkv[:, :, :2], qkv[:, :, 2]
+            # qk, v = qkv[:, :, :2], qkv[:, :, 2]
 
-            qk_reshaped = einops.rearrange(
-                qk, "b s two head head_dim -> (two b) s head head_dim", two=2
+            # qk_reshaped = einops.rearrange(
+            #     qk, "b s two head head_dim -> (two b) s head head_dim", two=2
+            # )
+            # qk_rotated = apply_rotary_pos_emb_vision(
+            #     qk_reshaped, cos=rotary_pos_emb_cos, sin=rotary_pos_emb_sin
+            # )
+            # qk_rotated = qk_rotated.view(
+            #     2,
+            #     batch_size,
+            #     seq_len,
+            #     self.num_attention_heads_per_partition,
+            #     self.hidden_size_per_attention_head,
+            # )
+            # q, k = qk_rotated.unbind(dim=0)
+            q_pre, k_pre, v = qkv.unbind(dim=2)
+            q, k = apply_rotary_2c_cuda(
+                q_pre, k_pre, rotary_pos_emb_cos, rotary_pos_emb_sin, inplace=True
             )
-            qk_rotated = apply_rotary_pos_emb_vision(
-                qk_reshaped, cos=rotary_pos_emb_cos, sin=rotary_pos_emb_sin
-            )
-            qk_rotated = qk_rotated.view(
-                2,
-                batch_size,
-                seq_len,
-                self.num_attention_heads_per_partition,
-                self.hidden_size_per_attention_head,
-            )
-            q, k = qk_rotated.unbind(dim=0)
         else:
             q, k, v = qkv.unbind(dim=2)
 
