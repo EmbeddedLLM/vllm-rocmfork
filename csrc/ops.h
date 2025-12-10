@@ -137,6 +137,11 @@ void apply_vision_rotary_2c(torch::Tensor& out_q, torch::Tensor& out_k,
                             const torch::Tensor& in_q,
                             const torch::Tensor& in_k, const torch::Tensor& cos,
                             const torch::Tensor& sin, int64_t rotary_dim);
+void apply_vision_rotary_2c_vec(torch::Tensor& out_q, torch::Tensor& out_k,
+                               const torch::Tensor& in_q,
+                               const torch::Tensor& in_k,
+                               const torch::Tensor& cos, const torch::Tensor& sin,
+                               int64_t rotary_dim);
 
 void silu_and_mul(torch::Tensor& out, torch::Tensor& input);
 

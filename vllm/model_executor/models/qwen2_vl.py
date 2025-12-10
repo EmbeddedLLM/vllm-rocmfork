@@ -344,6 +344,38 @@ def apply_rotary_2c_cuda(
     return output_q, output_k
 
 
+def apply_rotary_2c_cuda_vec(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+    inplace: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Vectorized CUDA implementation of apply_rotary_2c for vision transformers.
+    Uses 16-byte vectorized loads/stores when alignment and strides allow,
+    with fallback to the scalar kernel otherwise.
+    """
+    output_q = q if inplace else torch.empty_like(q)
+    output_k = k if inplace else torch.empty_like(k)
+
+    rotary_dim = int(cos.shape[1] * 2)
+    headdim = q.shape[-1]
+
+    if rotary_dim < headdim and not inplace:
+        output_q[..., rotary_dim:].copy_(q[..., rotary_dim:])
+        output_k[..., rotary_dim:].copy_(k[..., rotary_dim:])
+
+    cos_cast = cos.to(q.dtype)
+    sin_cast = sin.to(q.dtype)
+
+    torch.ops._C.apply_vision_rotary_2c_vec(
+        output_q, output_k, q, k, cos_cast, sin_cast, rotary_dim
+    )
+
+    return output_q, output_k
+
+
 def apply_rotary_pos_emb_vision_2c_cuda(
     q: torch.Tensor,
     k: torch.Tensor,

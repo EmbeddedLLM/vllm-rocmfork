@@ -100,6 +100,8 @@ from .qwen2_vl import (
     Qwen2VLMultiModalProcessor,
     Qwen2VLProcessingInfo,
     apply_rotary_2c_cuda,
+    apply_rotary_2c_cuda_vec,
+    apply_rotary_pos_emb_vision,
 )
 from .utils import (
     AutoWeightsLoader,
@@ -403,8 +405,12 @@ class Qwen2_5_VisionAttention(nn.Module):
             #     self.hidden_size_per_attention_head,
             # )
             # q, k = qk_rotated.unbind(dim=0)
+            # q_pre, k_pre, v = qkv.unbind(dim=2)
+            # q, k = apply_rotary_2c_cuda(
+            #     q_pre, k_pre, rotary_pos_emb_cos, rotary_pos_emb_sin, inplace=True
+            # )
             q_pre, k_pre, v = qkv.unbind(dim=2)
-            q, k = apply_rotary_2c_cuda(
+            q, k = apply_rotary_2c_cuda_vec(
                 q_pre, k_pre, rotary_pos_emb_cos, rotary_pos_emb_sin, inplace=True
             )
         else:

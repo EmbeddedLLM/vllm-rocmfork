@@ -231,6 +231,12 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       "                       Tensor in_q, Tensor in_k,"
       "                       Tensor cos, Tensor sin, int rotary_dim) -> ()");
   ops.impl("apply_vision_rotary_2c", torch::kCUDA, &apply_vision_rotary_2c);
+  ops.def(
+      "apply_vision_rotary_2c_vec(Tensor! out_q, Tensor! out_k,"
+      "                           Tensor in_q, Tensor in_k,"
+      "                           Tensor cos, Tensor sin, int rotary_dim) -> ()");
+  ops.impl("apply_vision_rotary_2c_vec", torch::kCUDA,
+           &apply_vision_rotary_2c_vec);
 
   // Quantization ops
 #ifndef USE_ROCM

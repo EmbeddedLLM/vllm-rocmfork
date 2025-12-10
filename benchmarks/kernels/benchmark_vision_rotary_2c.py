@@ -163,6 +163,17 @@ def apply_rotary_cuda_kernel(
     return apply_rotary_2c_cuda(q, k, cos, sin)
 
 
+def apply_rotary_cuda_kernel_vec(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Vectorized CUDA kernel implementation."""
+    from vllm.model_executor.models.qwen2_vl import apply_rotary_2c_cuda_vec
+    return apply_rotary_2c_cuda_vec(q, k, cos, sin)
+
+
 def benchmark_function(
     fn: Callable,
     q: torch.Tensor,
@@ -224,6 +235,7 @@ def run_benchmarks(
         "FlashAttn Triton Concat": apply_rotary_flash_attn_triton_concat,
         "FlashAttn Triton Separate": apply_rotary_flash_attn_triton_separate,
         "CUDA Kernel": apply_rotary_cuda_kernel,
+        "CUDA Kernel Vec": apply_rotary_cuda_kernel_vec,
     }
     
     print("=" * 120)
@@ -295,6 +307,11 @@ def run_benchmarks(
                                     if baseline in times and times[baseline] != float('inf'):
                                         speedup = times[baseline] / times["CUDA Kernel"]
                                         print(f"  Speedup vs {baseline:24s}: {speedup:6.2f}x")
+                            if "CUDA Kernel Vec" in times and times["CUDA Kernel Vec"] != float('inf'):
+                                for baseline in ["PyTorch Concat", "FlashAttn Triton Concat", "CUDA Kernel"]:
+                                    if baseline in times and times[baseline] != float('inf'):
+                                        speedup = times[baseline] / times["CUDA Kernel Vec"]
+                                        print(f"  Vec speedup vs {baseline:20s}: {speedup:6.2f}x")
                             
                             results["config"].append(config_str)
                             for name, t in times.items():
@@ -326,6 +343,21 @@ def run_benchmarks(
                 max_speedup = max(speedups)
                 min_speedup = min(speedups)
                 print(f"  vs {baseline:28s}: avg={avg_speedup:.2f}x, min={min_speedup:.2f}x, max={max_speedup:.2f}x")
+
+    if "CUDA Kernel Vec" in results:
+        print("\nAverage Speedups (CUDA Kernel Vec vs baselines):")
+        for baseline in ["PyTorch Concat", "FlashAttn Triton Concat", "FlashAttn Triton Separate", "CUDA Kernel"]:
+            if baseline in results:
+                valid_pairs = [
+                    (b, c) for b, c in zip(results[baseline], results["CUDA Kernel Vec"])
+                    if b != float('inf') and c != float('inf')
+                ]
+                if valid_pairs:
+                    speedups = [b / c for b, c in valid_pairs]
+                    avg_speedup = sum(speedups) / len(speedups)
+                    max_speedup = max(speedups)
+                    min_speedup = min(speedups)
+                    print(f"  vs {baseline:28s}: avg={avg_speedup:.2f}x, min={min_speedup:.2f}x, max={max_speedup:.2f}x")
     
     return results
 
@@ -355,9 +387,14 @@ def run_qwen3_vl_benchmark():
         "PyTorch Concat": apply_rotary_concat_reference,
         "FlashAttn Triton": apply_rotary_flash_attn_triton_concat,
         "CUDA Kernel": apply_rotary_cuda_kernel,
+        "CUDA Kernel Vec": apply_rotary_cuda_kernel_vec,
     }
     
-    header = f"{'Config':<40} {'PyTorch (ms)':<15} {'FlashAttn (ms)':<15} {'CUDA (ms)':<15} {'Speedup vs PT':<15} {'Speedup vs FA':<15}"
+    header = (
+        f"{'Config':<40} {'PyTorch (ms)':<15} {'FlashAttn (ms)':<15} "
+        f"{'CUDA (ms)':<15} {'CUDA Vec (ms)':<15} "
+        f"{'Vec vs PT':<12} {'Vec vs FA':<12} {'Vec vs CUDA':<12}"
+    )
     print(header)
     print("-" * len(header))
     
@@ -383,11 +420,18 @@ def run_qwen3_vl_benchmark():
         pytorch_time = times.get("PyTorch Concat", float('inf'))
         flashattn_time = times.get("FlashAttn Triton", float('inf'))
         cuda_time = times.get("CUDA Kernel", float('inf'))
+        cuda_vec_time = times.get("CUDA Kernel Vec", float('inf'))
         
-        speedup_pt = pytorch_time / cuda_time if cuda_time > 0 else 0
-        speedup_fa = flashattn_time / cuda_time if cuda_time > 0 else 0
+        speedup_pt_vec = pytorch_time / cuda_vec_time if cuda_vec_time > 0 else 0
+        speedup_fa_vec = flashattn_time / cuda_vec_time if cuda_vec_time > 0 else 0
+        speedup_cuda_vec = cuda_time / cuda_vec_time if cuda_vec_time > 0 else 0
         
-        print(f"{config_str:<40} {pytorch_time:<15.3f} {flashattn_time:<15.3f} {cuda_time:<15.3f} {speedup_pt:<15.2f}x {speedup_fa:<15.2f}x")
+        print(
+            f"{config_str:<40} "
+            f"{pytorch_time:<15.3f} {flashattn_time:<15.3f} "
+            f"{cuda_time:<15.3f} {cuda_vec_time:<15.3f} "
+            f"{speedup_pt_vec:<12.2f}x {speedup_fa_vec:<12.2f}x {speedup_cuda_vec:<12.2f}x"
+        )
 
 
 def main():

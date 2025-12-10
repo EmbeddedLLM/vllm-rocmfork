@@ -12,6 +12,15 @@ import pytest
 import torch
 
 from vllm.platforms import current_platform
+from vllm.model_executor.models.qwen2_vl import (
+    apply_rotary_2c_cuda,
+    apply_rotary_2c_cuda_vec,
+)
+
+CUDA_IMPLS = {
+    "scalar": apply_rotary_2c_cuda,
+    "vec": apply_rotary_2c_cuda_vec,
+}
 
 # Skip if not on CUDA/ROCm
 if not (current_platform.is_cuda() or current_platform.is_rocm()):
@@ -89,6 +98,7 @@ class TestVisionRotary2C:
     @pytest.mark.parametrize("headdim", [64, 128])
     @pytest.mark.parametrize("rotary_dim_ratio", [0.5, 1.0])
     @pytest.mark.parametrize("dtype", [torch.float32])
+    @pytest.mark.parametrize("cuda_impl", ["scalar", "vec"])
     def test_correctness(
         self, 
         device,
@@ -98,6 +108,7 @@ class TestVisionRotary2C:
         headdim: int,
         rotary_dim_ratio: float,
         dtype: torch.dtype,
+        cuda_impl: str,
     ):
         """Test that CUDA kernel matches reference implementation."""
         if dtype == torch.bfloat16 and not current_platform.has_device_capability(80):
@@ -123,8 +134,8 @@ class TestVisionRotary2C:
         )
         
         # CUDA kernel implementation
-        from vllm.model_executor.models.qwen2_vl import apply_rotary_2c_cuda
-        cuda_q, cuda_k = apply_rotary_2c_cuda(q.clone(), k.clone(), cos, sin)
+        cuda_fn = CUDA_IMPLS[cuda_impl]
+        cuda_q, cuda_k = cuda_fn(q.clone(), k.clone(), cos, sin)
         
         # Check correctness
         rtol = 1e-3 if dtype == torch.float16 else 1e-4
@@ -138,6 +149,7 @@ class TestVisionRotary2C:
     @pytest.mark.parametrize("nheads", [16])
     @pytest.mark.parametrize("headdim", [128])
     @pytest.mark.parametrize("dtype", [torch.float32])
+    @pytest.mark.parametrize("cuda_impl", ["scalar", "vec"])
     def test_inplace(
         self,
         device,
@@ -146,6 +158,7 @@ class TestVisionRotary2C:
         nheads: int,
         headdim: int,
         dtype: torch.dtype,
+        cuda_impl: str,
     ):
         """Test inplace operation."""
         rotary_dim = headdim // 2
@@ -163,10 +176,10 @@ class TestVisionRotary2C:
         )
         
         # CUDA kernel inplace
-        from vllm.model_executor.models.qwen2_vl import apply_rotary_2c_cuda
+        cuda_fn = CUDA_IMPLS[cuda_impl]
         q_inplace = q.clone()
         k_inplace = k.clone()
-        out_q, out_k = apply_rotary_2c_cuda(
+        out_q, out_k = cuda_fn(
             q_inplace, k_inplace, cos, sin, inplace=True
         )
         
@@ -179,7 +192,10 @@ class TestVisionRotary2C:
         torch.testing.assert_close(out_k, ref_k, rtol=1e-3, atol=1e-3)
     
     @pytest.mark.parametrize("dtype", [torch.float32])
-    def test_contiguous_and_noncontiguous(self, device, dtype: torch.dtype):
+    @pytest.mark.parametrize("cuda_impl", ["scalar", "vec"])
+    def test_contiguous_and_noncontiguous(
+        self, device, dtype: torch.dtype, cuda_impl: str
+    ):
         """Test with both contiguous and non-contiguous tensors."""
         batch_size, seqlen, nheads, headdim = 2, 64, 16, 128
         rotary_dim = headdim // 2
@@ -200,15 +216,18 @@ class TestVisionRotary2C:
         ref_q, ref_k = apply_rotary_pos_emb_vision_2c_reference(q, k, cos, sin)
         
         # CUDA with original contiguous
-        from vllm.model_executor.models.qwen2_vl import apply_rotary_2c_cuda
-        cuda_q, cuda_k = apply_rotary_2c_cuda(q.clone(), k.clone(), cos, sin)
+        cuda_fn = CUDA_IMPLS[cuda_impl]
+        cuda_q, cuda_k = cuda_fn(q.clone(), k.clone(), cos, sin)
         
         torch.testing.assert_close(cuda_q, ref_q, rtol=1e-3, atol=1e-3)
         torch.testing.assert_close(cuda_k, ref_k, rtol=1e-3, atol=1e-3)
     
     @pytest.mark.parametrize("seqlen", [197, 577, 1025])  # Typical ViT sequence lengths
     @pytest.mark.parametrize("dtype", [torch.float32])
-    def test_vit_typical_sizes(self, device, seqlen: int, dtype: torch.dtype):
+    @pytest.mark.parametrize("cuda_impl", ["scalar", "vec"])
+    def test_vit_typical_sizes(
+        self, device, seqlen: int, dtype: torch.dtype, cuda_impl: str
+    ):
         """Test with typical Vision Transformer sequence lengths."""
         batch_size = 1
         nheads = 16
@@ -224,8 +243,8 @@ class TestVisionRotary2C:
         
         ref_q, ref_k = apply_rotary_pos_emb_vision_2c_reference(q, k, cos, sin)
         
-        from vllm.model_executor.models.qwen2_vl import apply_rotary_2c_cuda
-        cuda_q, cuda_k = apply_rotary_2c_cuda(q.clone(), k.clone(), cos, sin)
+        cuda_fn = CUDA_IMPLS[cuda_impl]
+        cuda_q, cuda_k = cuda_fn(q.clone(), k.clone(), cos, sin)
         
         torch.testing.assert_close(cuda_q, ref_q, rtol=1e-3, atol=1e-3)
         torch.testing.assert_close(cuda_k, ref_k, rtol=1e-3, atol=1e-3)
