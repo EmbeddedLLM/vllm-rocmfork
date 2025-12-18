@@ -410,6 +410,81 @@ def _rocm_aiter_gemm_a8w8_blockscale_fake(
     return Y
 
 
+@functools.lru_cache(maxsize=1)
+def _initialize_hipb_mm():
+    from aiter import hipb_create_extension
+
+    hipb_create_extension()
+
+
+def _rocm_aiter_hip_bpreshuffle_gemm_impl(
+    input: torch.Tensor,  # [M, K]
+    weight: torch.Tensor,  # [K, N]
+    bias: torch.Tensor | None = None,
+    out_dtype: torch.dtype | None = None,
+    scale_a: torch.Tensor | None = None,
+    scale_b: torch.Tensor | None = None,
+) -> torch.Tensor:
+    if out_dtype is None:
+        out_dtype = torch.bfloat16
+
+    assert out_dtype == torch.bfloat16, (
+        f"hip_bpreshuffle_gemm only supports bfloat16 output dtype"
+        f", you have passed in {out_dtype}"
+    )
+
+    input_shape = input.shape
+    inp_view = input.view(-1, input.size(-1))
+
+    _initialize_hipb_mm()
+
+    # if input.dim() >= 3:
+    #     inp_view = input.view(-1, input.size(-1))
+    #     batched = True
+    # else:
+    #     inp_view = input
+    #     batched = False
+
+    # print(f"[hipb_mm] input_shape: {input_shape} ({inp_view.shape}), weight_shape: {weight.shape}, input_dtype: {input.dtype}, weight_dtype: {weight.dtype}, out_dtype: {out_dtype}, scale_a: {scale_a.shape if scale_a is not None else None}, scale_b: {scale_b.shape if scale_b is not None else None}")
+
+    from aiter import hipb_mm
+
+    output = hipb_mm(
+        inp_view,
+        weight,
+        solution_index=-1,
+        bias=bias,
+        out_dtype=out_dtype,
+        scaleA=scale_a,
+        scaleB=scale_b,
+        scaleOut=None,
+        bpreshuffle=True,
+    )
+
+    # if batched:
+    #     output = output.view(*input.shape[:-1], weight.shape[1])
+
+    output = output.view(*input_shape[:-1], weight.shape[1])
+
+    return output
+
+
+def _rocm_aiter_hip_bpreshuffle_gemm_fake(
+    input: torch.Tensor,  # [M, K]
+    weight: torch.Tensor,  # [K, N]
+    bias: torch.Tensor | None = None,
+    out_dtype: torch.dtype | None = None,
+    scale_a: torch.Tensor | None = None,
+    scale_b: torch.Tensor | None = None,
+) -> torch.Tensor:
+    if out_dtype is None:
+        out_dtype = torch.bfloat16
+
+    output_shape = input.shape[:-1] + (weight.shape[1],)
+    Y = torch.empty(output_shape, dtype=out_dtype, device=input.device)
+    return Y
+
+
 def _rocm_aiter_rms_norm_impl(
     x: torch.Tensor, weight: torch.Tensor, variance_epsilon: float
 ) -> torch.Tensor:
@@ -645,6 +720,8 @@ _OPS_REGISTERED = False
 class rocm_aiter_ops:
     _AITER_ENABLED = envs.VLLM_ROCM_USE_AITER
     _LINEAR_ENABLED = envs.VLLM_ROCM_USE_AITER_LINEAR
+    _LINEAR_SHUFFLE_ENABLED = envs.VLLM_ROCM_USE_AITER_LINEAR_SHUFFLE
+    _LINEAR_FP8HIPB_ENABLED = envs.VLLM_ROCM_USE_AITER_LINEAR_FP8HIPB
     _RMSNORM_ENABLED = envs.VLLM_ROCM_USE_AITER_RMSNORM
     _FMOE_ENABLED = envs.VLLM_ROCM_USE_AITER_MOE
     _MLA_ENABLED = envs.VLLM_ROCM_USE_AITER_MLA
@@ -656,6 +733,8 @@ class rocm_aiter_ops:
     _TRITON_ROTARY_EMBED = envs.VLLM_ROCM_USE_AITER_TRITON_ROPE
     _MOE_SHARED_EXPERTS_ENABLED = envs.VLLM_ROCM_USE_AITER_FUSION_SHARED_EXPERTS
     _TRITON_UNQUANT_GEMM = envs.VLLM_ROCM_USE_AITER_TRITON_GEMM
+
+    _HIPBLASLT_INITIALIZED = False
 
     @classmethod
     @if_aiter_supported
@@ -674,6 +753,18 @@ class rocm_aiter_ops:
     def is_linear_fp8_enaled(cls) -> bool:
         """ "Verifies device specs and availability of env variable."""
         return cls.is_linear_enabled()
+
+    @classmethod
+    @if_aiter_supported
+    def is_linear_shuffle_enabled(cls) -> bool:
+        """ "Verifies device specs and availability of env variable."""
+        return cls.is_linear_enabled() and cls._LINEAR_SHUFFLE_ENABLED
+
+    @classmethod
+    @if_aiter_supported
+    def is_linear_fp8_hipb_enabled(cls) -> bool:
+        """ "Verifies device specs and availability of env variable."""
+        return cls.is_linear_fp8_enaled() and cls._LINEAR_FP8HIPB_ENABLED
 
     @classmethod
     @if_aiter_supported
@@ -808,6 +899,13 @@ class rocm_aiter_ops:
                 op_name="rocm_aiter_gemm_a8w8_blockscale",
                 op_func=_rocm_aiter_gemm_a8w8_blockscale_impl,
                 fake_impl=_rocm_aiter_gemm_a8w8_blockscale_fake,
+            )
+
+            direct_register_custom_op(
+                op_name="rocm_aiter_hip_bpreshuffle_gemm",
+                op_func=_rocm_aiter_hip_bpreshuffle_gemm_impl,
+                fake_impl=_rocm_aiter_hip_bpreshuffle_gemm_fake,
+                dispatch_key=current_platform.dispatch_key,
             )
 
             direct_register_custom_op(
@@ -1242,7 +1340,7 @@ class rocm_aiter_ops:
 
     @staticmethod
     def shuffle_weight(
-        self, tensor: torch.Tensor, layout: tuple[int, int] = (16, 16)
+        tensor: torch.Tensor, layout: tuple[int, int] = (16, 16)
     ) -> torch.Tensor:
         from aiter.ops.shuffle import shuffle_weight
 
@@ -1276,6 +1374,7 @@ class rocm_aiter_ops:
         IN, IK = layout
         BK = IK * 2
         return (n % IN == 0) and (k % BK == 0)
+        # return (n % 192 == 0) and (k % 192 == 0)
 
     @staticmethod
     def rocm_aiter_tuned_gemm(
@@ -1289,6 +1388,74 @@ class rocm_aiter_ops:
         return aiter_tgemm.mm(
             input, weight, otype=out_dtype, scale_a=scale_a, scale_b=scale_b, bias=bias
         )
+
+    @classmethod
+    def initialize_hipblaslt(cls) -> None:
+        # Add a safeguard so that
+        # aiter_ops can still be imported
+        # on non-ROCm platforms and called
+        # without causing errors
+        return
+        if not current_platform.is_rocm():
+            return
+        if cls._HIPBLASLT_INITIALIZED:
+            return
+        from aiter import hipb_create_extension
+
+        hipb_create_extension()
+        cls._HIPBLASLT_INITIALIZED = True
+
+    @staticmethod
+    def hip_bpreshuffle_gemm(
+        input: torch.Tensor,  # [M, K]
+        weight: torch.Tensor,  # [K, N]
+        bias: torch.Tensor | None = None,
+        out_dtype: torch.dtype | None = None,
+        scale_a: torch.Tensor | None = None,
+        scale_b: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        if out_dtype is None:
+            out_dtype = torch.bfloat16
+
+        assert out_dtype == torch.bfloat16, (
+            f"hip_bpreshuffle_gemm only supports bfloat16 output dtype"
+            f", you have passed in {out_dtype}"
+        )
+
+        return torch.ops.vllm.rocm_aiter_hip_bpreshuffle_gemm(
+            input, weight, bias, out_dtype, scale_a, scale_b
+        )
+
+        # input_shape = input.shape
+        # inp_view = input.view(-1, input.size(-1))
+
+        # # if input.dim() >= 3:
+        # #     inp_view = input.view(-1, input.size(-1))
+        # #     batched = True
+        # # else:
+        # #     inp_view = input
+        # #     batched = False
+
+        # from aiter import hipb_mm
+
+        # output = hipb_mm(
+        #     inp_view,
+        #     weight,
+        #     solution_index=-1,
+        #     bias=bias,
+        #     out_dtype=out_dtype,
+        #     scaleA=scale_a,
+        #     scaleB=scale_b,
+        #     scaleOut=None,
+        #     bpreshuffle=True,
+        # )
+
+        # # if batched:
+        # #     output = output.view(*input.shape[:-1], weight.shape[1])
+
+        # output = output.view(*input_shape[:-1], weight.shape[1])
+
+        # return output
 
 
 rocm_aiter_ops.register_ops_once()
