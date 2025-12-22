@@ -21,6 +21,7 @@ if current_platform.is_cuda_alike():
     from .sequence_parallelism import SequenceParallelismPass
 
 if current_platform.is_rocm():
+    from .mrope_qk_norm_fusion import MRoPEQKNormFusionPass
     from .rocm_aiter_allreduce_rmsnorm_fusion import (
         ROCmAiterAllReduceRMSNormFusionPass,
         is_rocm_aiter_allreduce_rmsnorm_enabled,
@@ -132,6 +133,13 @@ class PostGradPassManager(CustomGraphPass):
 
             if self.pass_config.enable_qk_norm_rope_fusion:
                 self.passes += [QKNormRoPEFusionPass(config)]
+
+            # MRoPE fusion (ROCm only for now)
+            if (
+                current_platform.is_rocm()
+                and self.pass_config.enable_qk_norm_rope_fusion  # Reuse same flag for now
+            ):
+                self.passes += [MRoPEQKNormFusionPass(config)]
 
             # needs a functional graph
             self.post_cleanup = PostCleanupPass(config)

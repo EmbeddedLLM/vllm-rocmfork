@@ -121,6 +121,7 @@ if TYPE_CHECKING:
     VLLM_ROCM_USE_AITER_FUSION_SHARED_EXPERTS: bool = False
     VLLM_ROCM_USE_AITER_TRITON_GEMM: bool = True
     VLLM_ROCM_USE_AITER_FUSED_QK_NORM_ROPE: bool = False
+    VLLM_ROCM_USE_AITER_FUSED_MROPE: bool = False
     VLLM_ROCM_USE_SKINNY_GEMM: bool = True
     VLLM_ROCM_FP8_PADDING: bool = True
     VLLM_ROCM_MOE_PADDING: bool = True
@@ -990,6 +991,12 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # By default is disabled.
     "VLLM_ROCM_USE_AITER_FUSED_QK_NORM_ROPE": lambda: (
         os.getenv("VLLM_ROCM_USE_AITER_FUSED_QK_NORM_ROPE", "False").lower()
+        in ("true", "1")
+    ),
+    # Whether to use aiter fused mrope 3d kernel with qk norm.
+    # By default is disabled.
+    "VLLM_ROCM_USE_AITER_FUSED_MROPE": lambda: (
+        os.getenv("VLLM_ROCM_USE_AITER_FUSED_MROPE", "False").lower()
         in ("true", "1")
     ),
     # use rocm skinny gemms
