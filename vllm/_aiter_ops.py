@@ -455,6 +455,134 @@ def _rocm_aiter_rms_norm_fake(
     return torch.empty_like(x)
 
 
+def _rocm_aiter_fused_qk_norm_rope_impl(
+    qkv: torch.Tensor,
+    num_heads_q: int,
+    num_heads_k: int,
+    num_heads_v: int,
+    head_dim: int,
+    eps: float,
+    q_weight: torch.Tensor,
+    k_weight: torch.Tensor,
+    cos_sin_cache: torch.Tensor,
+    is_neox: bool,
+    position_ids: torch.Tensor,
+) -> None:
+    from aiter import fused_rope_rms
+
+    num_tokens = position_ids.numel()
+    fused_rope_rms(
+        qkv=qkv,
+        qw=q_weight,
+        kw=k_weight,
+        cos_sin=cos_sin_cache,
+        positions=position_ids,
+        num_tokens=num_tokens,
+        num_heads_q=num_heads_q,
+        num_heads_k=num_heads_k,
+        num_heads_v=num_heads_v,
+        head_size=head_dim,
+        is_neox_style=is_neox,
+        eps=eps,
+    )
+
+
+def _rocm_aiter_fused_qk_norm_rope_fake(
+    qkv: torch.Tensor,
+    num_heads_q: int,
+    num_heads_k: int,
+    num_heads_v: int,
+    head_dim: int,
+    eps: float,
+    q_weight: torch.Tensor,
+    k_weight: torch.Tensor,
+    cos_sin_cache: torch.Tensor,
+    is_neox: bool,
+    position_ids: torch.Tensor,
+) -> None:
+    pass
+
+
+def _rocm_aiter_fused_mrope_3d_rms_impl(
+    qkv: torch.Tensor,
+    num_heads_q: int,
+    num_heads_k: int,
+    num_heads_v: int,
+    head_dim: int,
+    eps: float,
+    q_weight: torch.Tensor,
+    k_weight: torch.Tensor,
+    cos_sin_cache: torch.Tensor,
+    is_neox: bool,
+    position_ids: torch.Tensor,
+    mrope_section: list[int],
+    is_interleaved: bool,
+) -> None:
+    """AITER fused MRoPE 3D + QK RMSNorm implementation.
+
+    Args:
+        qkv: Input tensor of shape (num_tokens, (num_heads_q + num_heads_k + num_heads_v) * head_dim)
+             Modified in-place
+        num_heads_q: Number of query heads
+        num_heads_k: Number of key heads
+        num_heads_v: Number of value heads
+        head_dim: Dimension per head
+        eps: Epsilon for RMSNorm
+        q_weight: Query norm weight of shape (head_dim,)
+        k_weight: Key norm weight of shape (head_dim,)
+        cos_sin_cache: Cosine/sine cache of shape (max_positions, head_dim)
+        is_neox: Whether to use NeoX-style rotary embeddings
+        position_ids: Position indices of shape (3, num_tokens) for T/H/W dimensions
+        mrope_section: List of 3 integers specifying T/H/W section sizes (e.g., [16, 24, 24])
+        is_interleaved: Whether to use interleaved layout for mrope sections
+    """
+    from aiter import fused_mrope_3d_rms
+
+    # Get dimensions
+    num_tokens = qkv.shape[0]
+
+    # AITER expects qkv to be contiguous with shape (num_tokens, num_heads, head_dim)
+    # where num_heads = num_heads_q + num_heads_k + num_heads_v
+    # But input is (num_tokens, total_size) where total_size = (num_heads_q + num_heads_k + num_heads_v) * head_dim
+
+    # Call AITER kernel
+    fused_mrope_3d_rms(
+        qkv,  # Modified in-place
+        q_weight,  # qw
+        k_weight,  # kw
+        cos_sin_cache,  # cos_sin
+        position_ids,  # positions - shape (3, num_tokens)
+        num_tokens,  # num_tokens
+        num_heads_q,  # num_heads_q
+        num_heads_k,  # num_heads_k
+        num_heads_v,  # num_heads_v
+        head_dim,  # head_size
+        is_neox,  # is_neox_style
+        mrope_section,  # mrope_section_
+        is_interleaved,  # is_interleaved
+        eps,  # eps
+    )
+
+
+def _rocm_aiter_fused_mrope_3d_rms_fake(
+    qkv: torch.Tensor,
+    num_heads_q: int,
+    num_heads_k: int,
+    num_heads_v: int,
+    head_dim: int,
+    eps: float,
+    q_weight: torch.Tensor,
+    k_weight: torch.Tensor,
+    cos_sin_cache: torch.Tensor,
+    is_neox: bool,
+    position_ids: torch.Tensor,
+    mrope_section: list[int],
+    is_interleaved: bool,
+) -> None:
+    """Fake implementation for torch.compile meta mode."""
+    pass
+
+
 def _rocm_aiter_rmsnorm2d_fwd_with_add_impl(
     x: torch.Tensor,
     residual: torch.Tensor,
@@ -682,6 +810,8 @@ class rocm_aiter_ops:
     _TRITON_ROTARY_EMBED = envs.VLLM_ROCM_USE_AITER_TRITON_ROPE
     _MOE_SHARED_EXPERTS_ENABLED = envs.VLLM_ROCM_USE_AITER_FUSION_SHARED_EXPERTS
     _TRITON_UNQUANT_GEMM = envs.VLLM_ROCM_USE_AITER_TRITON_GEMM
+    _FUSED_QK_NORM_ROPE = envs.VLLM_ROCM_USE_AITER_FUSED_QK_NORM_ROPE
+    _FUSED_MROPE = envs.VLLM_ROCM_USE_AITER_FUSED_MROPE
 
     @classmethod
     @if_aiter_supported
@@ -761,12 +891,28 @@ class rocm_aiter_ops:
     @classmethod
     @if_aiter_supported
     def is_triton_rotary_embed_enabled(cls) -> bool:
+        # Disable Triton RoPE when QK fusion is enabled, as the fusion needs
+        # the RoPE custom op to be present in the graph for pattern matching
+        if cls._AITER_ENABLED and cls._FUSED_QK_NORM_ROPE:
+            return False
         return cls._AITER_ENABLED and cls._TRITON_ROTARY_EMBED
 
     @classmethod
     @if_aiter_supported
     def is_triton_gemm_enabled(cls) -> bool:
         return cls._AITER_ENABLED and cls._TRITON_UNQUANT_GEMM
+
+    @classmethod
+    @if_aiter_supported
+    def is_fused_qk_norm_rope_enabled(cls) -> bool:
+        """ "Verifies device specs and availability of env variable."""
+        return cls._AITER_ENABLED and cls._FUSED_QK_NORM_ROPE
+
+    @classmethod
+    @if_aiter_supported
+    def is_fused_mrope_enabled(cls) -> bool:
+        """Verifies device specs and availability of env variable for MRoPE fusion."""
+        return cls._AITER_ENABLED and cls._FUSED_MROPE
 
     @staticmethod
     @if_aiter_supported
@@ -901,6 +1047,22 @@ class rocm_aiter_ops:
                 dispatch_key=current_platform.dispatch_key,
             )
 
+            direct_register_custom_op(
+                op_name="rocm_aiter_fused_qk_norm_rope",
+                op_func=_rocm_aiter_fused_qk_norm_rope_impl,
+                mutates_args=["qkv"],
+                fake_impl=_rocm_aiter_fused_qk_norm_rope_fake,
+                dispatch_key=current_platform.dispatch_key,
+            )
+
+            direct_register_custom_op(
+                op_name="rocm_aiter_fused_mrope_3d_rms",
+                op_func=_rocm_aiter_fused_mrope_3d_rms_impl,
+                mutates_args=["qkv"],
+                fake_impl=_rocm_aiter_fused_mrope_3d_rms_fake,
+                dispatch_key=current_platform.dispatch_key,
+            )
+
             _OPS_REGISTERED = True
 
     @staticmethod
@@ -919,6 +1081,66 @@ class rocm_aiter_ops:
         x: torch.Tensor, weight: torch.Tensor, variance_epsilon: float
     ) -> torch.Tensor:
         return torch.ops.vllm.rocm_aiter_rms_norm(x, weight, variance_epsilon)
+
+    @staticmethod
+    def fused_qk_norm_rope(
+        qkv: torch.Tensor,
+        num_heads_q: int,
+        num_heads_k: int,
+        num_heads_v: int,
+        head_dim: int,
+        eps: float,
+        q_weight: torch.Tensor,
+        k_weight: torch.Tensor,
+        cos_sin_cache: torch.Tensor,
+        is_neox: bool,
+        position_ids: torch.Tensor,
+    ) -> None:
+        torch.ops.vllm.rocm_aiter_fused_qk_norm_rope(
+            qkv,
+            num_heads_q,
+            num_heads_k,
+            num_heads_v,
+            head_dim,
+            eps,
+            q_weight,
+            k_weight,
+            cos_sin_cache,
+            is_neox,
+            position_ids,
+        )
+
+    @staticmethod
+    def fused_mrope_3d_rms(
+        qkv: torch.Tensor,
+        num_heads_q: int,
+        num_heads_k: int,
+        num_heads_v: int,
+        head_dim: int,
+        eps: float,
+        q_weight: torch.Tensor,
+        k_weight: torch.Tensor,
+        cos_sin_cache: torch.Tensor,
+        is_neox: bool,
+        position_ids: torch.Tensor,
+        mrope_section: list[int],
+        is_interleaved: bool,
+    ) -> None:
+        torch.ops.vllm.rocm_aiter_fused_mrope_3d_rms(
+            qkv,
+            num_heads_q,
+            num_heads_k,
+            num_heads_v,
+            head_dim,
+            eps,
+            q_weight,
+            k_weight,
+            cos_sin_cache,
+            is_neox,
+            position_ids,
+            mrope_section,
+            is_interleaved,
+        )
 
     @staticmethod
     def gemm_a8w8(
@@ -1173,14 +1395,14 @@ class rocm_aiter_ops:
         key_ = key[..., :rotary_dim]
         positions = positions.view(*query.shape[:1])
         rope_cached_thd_positions_2c_fwd_inplace(
-            positions,
-            sin,
-            cos,
-            query_,
-            key_,
-            rotate_style,
+            positions=positions,
+            sin=sin,
+            cos=cos,
+            x=query_,
+            y=key_,
+            rotate_style=rotate_style,
             reuse_freqs_front_part=True,
-            is_nope_first=False,
+            nope_first=False,
         )
         query = query.view(query_shape)
         key = key.view(key_shape)
